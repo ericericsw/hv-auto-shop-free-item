@@ -56,7 +56,7 @@ config.read(config_path, encoding="utf-8")
 Log_Mode = config.get('Log', 'Log_Mode')
 Log_Format = '%(asctime)s %(filename)s %(levelname)s:%(message)s'  # 日誌格式
 log_file_path = os.path.join(
-    current_directory, 'log', 'sample.log')
+    current_directory, 'log', 'forums_carwler.log')
 logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                     format=Log_Format,
                     handlers=[logging.FileHandler(log_file_path, 'a', 'utf-8'),
@@ -402,12 +402,21 @@ def Get_Forums_Ticket():
             Warning_Log.append(Warning_Log_Temp)
 
         # *檢查order時間間隔
-        elif not csv_tools.check_user_has_ticket_in_time_list(User_UID, free_shop_order_setting_data[parts]['item_suit_cold_time_day']):
+        elif not csv_tools.check_user_has_ticket_in_time_list(User_UID, free_shop_order_setting_data[parts]['item_suit_cold_time_day'], response):
             Warning_Log_Temp = {
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
                 'Input_Error_Type': 'Need-Wait-Cool-Time'
+            }
+            Warning_Log.append(Warning_Log_Temp)
+
+        elif not csv_tools.check_user_has_ticket_number(User_UID, response, int(free_shop_order_setting_data[parts]['item_suit_order_limit'])):
+            Warning_Log_Temp = {
+                'post_number': post_number,
+                'Post_ID': Post_ID,
+                'User_ID': User_ID,
+                'Input_Error_Type': 'Too-Many-Order'
             }
             Warning_Log.append(Warning_Log_Temp)
 

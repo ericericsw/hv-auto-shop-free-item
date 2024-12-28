@@ -1328,12 +1328,44 @@ def Equip_MM_Receive_Archiving_Check_Found(User_ID, Equip_URL):
         print(f"An error occurred: {e}")
 
 
-def check_user_has_ticket_in_time_list(user_uid: str, time_limit: int):
+def check_user_has_ticket_number(user_uid: str,  item_suit_id: str, item_suit_order_limit: int):
     """
-    使用user-uid做索引，確認時間限制內有無ticket，若有則回應false，沒有會回應true
+    使用user-uid、item_suit_id做索引，是否超過領取次數，若有則回應false，沒有會回應true
+
+    輸入:
+        user_uid:E變態的UID
+        item_suit_id:贈送品名編號
+        item_suit_order_limit:贈送品名領取次數限制
+    """
+    csv_file_path = os.path.join(csv_directory, 'free_shop_ticket.csv')
+    headers = ['Ticket_No', 'Time', 'User_ID',
+               'User_UID', 'User_Level', 'Item_Suit']
+    check_csv_exists(csv_file_path, headers)
+
+    ticket_counter: int = 0
+
+    # 讀取CSV文件並找到最新的Ticket_No
+    with open(csv_file_path, mode='r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if int(row['User_UID']) == user_uid:
+                if row['item_suit_id'] == item_suit_id:
+                    ticket_counter = +1
+
+    if ticket_counter < item_suit_order_limit:
+        return True
+    else:
+        return False
+
+
+def check_user_has_ticket_in_time_list(user_uid: str, time_limit: int, item_suit_id: str):
+    """
+    使用user-uid、item_suit_id做索引，確認時間限制內有無ticket，若有則回應false，沒有會回應true
+
     輸入:
         user_uid:E變態的UID
         time_limit:單位為天
+        item_suit_id:贈送品名編號
     """
     csv_file_path = os.path.join(csv_directory, 'free_shop_ticket.csv')
     headers = ['Ticket_No', 'Time', 'User_ID',
@@ -1349,7 +1381,8 @@ def check_user_has_ticket_in_time_list(user_uid: str, time_limit: int):
         max_ticket_no = 0
         for row in reader:
             if int(row['User_UID']) == user_uid:
-                last_ticket_time = row['Time']
+                if row['item_suit_id'] == item_suit_id:
+                    last_ticket_time = row['Time']
 
     # 取得當前時間
     current_time = datetime.datetime.now()

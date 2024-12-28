@@ -1,0 +1,15 @@
+item_suit_id,item_name,item_number,item_suit_cool_time_day,item_suit_order_limit,item_suit_level_limit_min,item_suit_level_limit_max
+demo_suit_1,Health Draught,100,0,1,0,99
+demo_suit_1,Mana Draught,50,0,1,0,99
+demo_suit_2,Health Draught,500,0,1,100,199
+demo_suit_2,Health Potion,50,0,1,100,199
+demo_suit_2,Mana Draught,200,0,1,100,199
+demo_suit_2,Mana Potion,20,0,1,100,199
+demo_suit_2,Spirit Draught,100,0,1,100,199
+demo_suit_2,Spirit Potion,20,0,1,100,199
+demo_suit_3,Health Draught,1000,0,1,200,250
+demo_suit_3,Health Potion,100,0,1,200,250
+demo_suit_3,Mana Draught,500,0,1,200,250
+demo_suit_3,Mana Potion,50,0,1,200,250
+demo_suit_3,Spirit Draught,200,0,1,200,250
+demo_suit_3,Spirit Potion,20,0,1,200,250

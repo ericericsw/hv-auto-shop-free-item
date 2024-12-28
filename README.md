@@ -1,6 +1,9 @@
 # hv-auto-shop-free-item
 for hentaiverse free item shop
 
+# 時間間隔計算
+作為升級獎勵，不同的 item_suit_id 的時間獨立計算  
+
 # 預佔post數量
 程式預設中，前5個post會是店家post.  
 可以更多，可自行更改 csv/free_shop_last_post.csv.
@@ -12,6 +15,8 @@ ipb_pass_hash =
 ipb_session_id =  
 
 # free_shop_order.csv 的格式
+範例可參考 csv/free_shop_order_setting.csv
+
 | 欄位名稱 | 說明 | 取值與限制 |
 |----------|----------|----------|
 | item_suit_id | 讓人請求order的ID | 不得有空白，必須是完整的字段 |
