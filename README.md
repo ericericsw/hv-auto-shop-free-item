@@ -2,25 +2,16 @@
 for hentaiverse free item shop
 
 # 預佔post數量
-程式預設中，前5個post會是店家post
-可以更多，可自行更改 csv/free_shop_last_post.csv
+程式預設中，前5個post會是店家post.  
+可以更多，可自行更改 csv/free_shop_last_post.csv.
 
 # config.ini 設定
-HV_Equip_Rental_Shop_ID:
-HV_Equip_Rental_Shop_UID = 
-ipb_pass_hash = 
-ipb_session_id
+HV_Equip_Rental_Shop_ID =  
+HV_Equip_Rental_Shop_UID =  
+ipb_pass_hash =  
+ipb_session_id =  
 
 # free_shop_order.csv 的格式
-item_suit_id:讓人叫號的ID
-item_name
-item_number
-item_suit_cool_time_day
-item_suit_order_limit
-item_suit_level_limit_min
-item_suit_level_limit_max
-
-
 | 欄位名稱 | 說明 | 取值與限制 |
 |----------|----------|----------|
 | item_suit_id | 讓人請求order的ID | 不得有空白，必須是完整的字段 |
