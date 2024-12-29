@@ -1,5 +1,9 @@
-# hv-auto-shop-free-item
-for hentaiverse free item shop
+## hv-auto-shop-free-item
+這是HV免費店的執行腳本
+
+## 目前功能
+自動爬樓檢查 post 是否符合設定 order 要求，符合要求的會用 MM 發信，錯誤的會記錄在 warning log
+目前還沒有 MM check 與論壇 Post edit 功能
 
 # 時間間隔計算
 作為升級獎勵，不同的 item_suit_id 的時間獨立計算  
@@ -15,8 +19,8 @@ HV_Free_Shop_UID =
 ipb_pass_hash =  
 ipb_session_id =  
 Check_Forums_URL:檢查的論壇Post，請提供主樓網址，例如:https://forums.e-hentai.org/index.php?showtopic=257252
-Check_Interval:執行間隔(Sec)
-
+Check_Interval:執行間隔(Sec)。預設180秒
+Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
 
 # free_shop_order.csv 的格式
 範例可參考 csv/free_shop_order_setting.csv
@@ -31,3 +35,10 @@ Check_Interval:執行間隔(Sec)
 | item_suit_order_limit | 請求order的次數限制 | 只能填入數字，若同一筆item_suit_id有不同值，則取最小值
 | item_suit_level_limit_min | 請求order的最小等級 | 只能填入數字，若同一筆item_suit_id有不同值，則取最大值
 | item_suit_level_limit_max | 請求order的最大等級 | 只能填入數字，若同一筆item_suit_id有不同值，則取最小值
+
+# 如何使用
+完成設定 config_sample.ini 的設定後：
+windows:打包後雙擊open_shop.bat
+
+# 如何停止
+關閉cmd或是使用ctrl+c進行終止

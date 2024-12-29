@@ -1,10 +1,13 @@
 # 排除
 log/
 csv_back/
+build/
+dist/
 csv/*
 __pycache__/
 config.ini
 sample.py
+*spec
 
 # 例外
 !csv/free_shop_order_setting.csv

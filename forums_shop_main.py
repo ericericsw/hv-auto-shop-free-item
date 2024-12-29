@@ -21,19 +21,24 @@ import traceback
 timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
-current_Directory = os.path.dirname(os.path.abspath(__file__))
-csv_directory = os.path.join(current_Directory, 'csv')
+if getattr(sys, 'frozen', False):
+    # 如果是打包後的可執行文件
+    current_directory = os.path.dirname(sys.executable)
+else:
+    # 如果是未打包的原始腳本
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+csv_directory = os.path.join(current_directory, 'csv')
 
 # 檢查工作目錄是否有資料夾，沒有的話建立 log 資料夾
-log_dir = os.path.join(current_Directory, 'log')
+log_dir = os.path.join(current_directory, 'log')
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     print('created {} folder'.format(log_dir))
 
 # 如果 config.ini 不存在則將 sample 改名拿來用
-if not os.path.exists(os.path.join(current_Directory, 'config.ini')):
-    os.rename(os.path.join(current_Directory, 'config_sample.ini'),
-              os.path.join(current_Directory, 'config.ini'))
+if not os.path.exists(os.path.join(current_directory, 'config.ini')):
+    os.rename(os.path.join(current_directory, 'config_sample.ini'),
+              os.path.join(current_directory, 'config.ini'))
 
 # 如果 free_shop_last_post_sample.csv 不存在則將 free_shop_last_post_sample.csv 改名拿來用
 if not os.path.exists(os.path.join(csv_directory, 'free_shop_last_post.csv')):
@@ -42,15 +47,14 @@ if not os.path.exists(os.path.join(csv_directory, 'free_shop_last_post.csv')):
 
 # Load configparser
 config = configparser.ConfigParser()
-config_path = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'config.ini')
+config_path = os.path.join(current_directory, 'config.ini')
 config.read(config_path, encoding="utf-8")
 
 # 設置日誌
 Log_Mode = config.get('Log', 'Log_Mode')
 Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'
 log_file_path = os.path.join(
-    current_Directory, 'log', 'sample.log')
+    current_directory, 'log', 'forums_shop_main.log')
 logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                     format=Log_Format,
                     handlers=[logging.FileHandler(log_file_path, 'a', 'utf-8'),
@@ -61,6 +65,7 @@ logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
 HV_Free_Shop_ID = config.get('Account', 'HV_Free_Shop_ID')
 HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
 Shop_Check_Interval = config.getint('Shop', 'Check_Interval')
+Shop_Test_Mode = config.getboolean('Shop', 'Test_Mode')
 
 
 def check_folder_path_exists(folder_Path: os.path):
@@ -222,8 +227,9 @@ def ticket_info_processing(shop_order_setting: dict, ticket_info: list):
             subject_text = "{}'s Free Shop Ticket {}".format(
                 HV_Free_Shop_ID, ticket_no)
             body_text = "Hello {}, Your supplies have arrived".format(user_id)
-            hv_mmlib.send_mm_with_item(
-                shop_order_setting[order_suit]['item_info'], user_id, subject_text, body_text)
+            if not Shop_Test_Mode:
+                hv_mmlib.send_mm_with_item(
+                    shop_order_setting[order_suit]['item_info'], user_id, subject_text, body_text)
 
             # TODO 還沒做 hv_mmlib 的 check 擴充
             # csv_tools.Tag_In_MM_Ticket(ticket_no)
@@ -295,3 +301,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print()
+    # os.system("pause")

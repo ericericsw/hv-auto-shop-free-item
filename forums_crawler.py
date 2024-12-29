@@ -21,7 +21,6 @@ config = configparser.ConfigParser()
 # 讀取配置文件
 config.read('config.ini')
 
-debug_mode = config.getboolean('Settings', 'debug_mode')
 Check_Forums_URL = config.get('URLs', 'Check_Forums_URL')
 
 '''
@@ -36,7 +35,12 @@ Check_Forums_URL = config.get('URLs', 'Check_Forums_URL')
 timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
-current_directory = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    # 如果是打包後的可執行文件
+    current_directory = os.path.dirname(sys.executable)
+else:
+    # 如果是未打包的原始腳本
+    current_directory = os.path.dirname(os.path.abspath(__file__))
 csv_directory = os.path.join(current_directory, 'csv')
 
 
@@ -46,10 +50,15 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     print(f"因資料夾不存在， 建立'{log_dir}' 資料夾。")
 
+
+# 如果 config.ini 不存在則將 sample 改名拿來用
+if not os.path.exists(os.path.join(current_directory, 'config.ini')):
+    os.rename(os.path.join(current_directory, 'config_sample.ini'),
+              os.path.join(current_directory, 'config.ini'))
+
 # Load configparser
 config = configparser.ConfigParser()
-config_path = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'config.ini')
+config_path = os.path.join(current_directory, 'config.ini')
 config.read(config_path, encoding="utf-8")
 
 # 設置日誌

@@ -7,6 +7,7 @@ import configparser
 import shutil
 import pytz
 import logging
+import sys
 # endregion
 
 
@@ -14,7 +15,12 @@ import logging
 timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
-current_directory = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, 'frozen', False):
+    # 如果是打包後的可執行文件
+    current_directory = os.path.dirname(sys.executable)
+else:
+    # 如果是未打包的原始腳本
+    current_directory = os.path.dirname(os.path.abspath(__file__))
 csv_directory = os.path.join(current_directory, 'csv')
 
 # 檢查工作目錄是否有資料夾，沒有的話建立 log 資料夾
@@ -23,10 +29,15 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     print(f"因資料夾不存在， 建立'{log_dir}' 資料夾。")
 
+
+# 如果 config.ini 不存在則將 sample 改名拿來用
+if not os.path.exists(os.path.join(current_directory, 'config.ini')):
+    os.rename(os.path.join(current_directory, 'config_sample.ini'),
+              os.path.join(current_directory, 'config.ini'))
+
 # Load configparser
 config = configparser.ConfigParser()
-config_path = os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), 'config.ini')
+config_path = os.path.join(current_directory, 'config.ini')
 config.read(config_path, encoding="utf-8")
 
 # 設置日誌
@@ -104,10 +115,9 @@ def Get_Black_List_Reason_From_User_UID(User_UID: int):
 
 def Get_User_From_Black_List():
     # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
 
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory, 'csv',
                              'HV_Equip_Shop_Black_List.csv')
 
     # 使用集合儲存使用者 ID，以排除重複的項目
@@ -131,11 +141,9 @@ def Get_User_From_Black_List():
 
 
 def Add_User_To_Black_List(User_ID, User_UID, Equip_ID, Equip_URL, Equip_Name, Root_Cause, Time=None):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
 
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_Shop_Black_List.csv')
 
     # 如果未提供時間，則使用當前時間
@@ -156,7 +164,7 @@ def Add_User_To_Black_List(User_ID, User_UID, Equip_ID, Equip_URL, Equip_Name, R
 
         writer.writerow(log_entry)
 
-    Write_Raw_Log('Benerate_Black_List', 'Write', log_entry)
+    logging.warning('Benerate_Black_List:{}'.format(log_entry))
 
 
 class Check_Transaction():
@@ -168,18 +176,13 @@ class Check_Transaction():
         """
         初始化備份系統路徑
         """
-        # 取得當前目錄
-        self.current_directory = os.path.dirname(os.path.abspath(__file__))
-        # csv 資料夾路徑
-        self.csv_folder_path = os.path.join(self.current_directory, 'csv')
         # 檔案路徑
         self.file_path = os.path.join(
-            self.csv_folder_path, 'Check_Transaction.csv')
+            csv_directory, 'Check_Transaction.csv')
 
         # csv_back 資料夾路徑
         self.csv_back_folder_path = os.path.join(
-            self.current_directory, 'csv_back')
-        check_folder_path_exists(self.current_directory)
+            current_directory, 'csv_back')
         check_folder_path_exists(self.csv_back_folder_path)
 
         headers = ['Time', 'Start', 'End']
@@ -276,7 +279,7 @@ class Check_Transaction():
         進行備份
         """
         # 取得來源資料夾中的所有檔案
-        files = os.listdir(self.csv_folder_path)
+        files = os.listdir(csv_directory)
         exclude_file = [
             'Check_Transaction.csv',
         ]
@@ -284,7 +287,7 @@ class Check_Transaction():
         # 遍歷所有檔案，排除指定檔案，進行複製
         for file in files:
             if file not in exclude_file and file.endswith('.csv'):
-                source_path = os.path.join(self.csv_folder_path, file)
+                source_path = os.path.join(csv_directory, file)
                 destination_path = os.path.join(
                     self.csv_back_folder_path, file)
                 shutil.copyfile(source_path, destination_path)
@@ -297,7 +300,7 @@ class Check_Transaction():
 
         for file in files:
             source_path = os.path.join(self.csv_back_folder_path, file)
-            destination_path = os.path.join(self.csv_folder_path, file)
+            destination_path = os.path.join(csv_directory, file)
             shutil.copyfile(source_path, destination_path)
 
         logging.warning('Rollback Finish')
@@ -305,11 +308,9 @@ class Check_Transaction():
 
 # 紀錄 MM 中的裝備的領取時間紀錄
 def Add_MM_Take_Date(Ticket_No):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
 
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_Shop_Ticket.csv')
 
     # 取得當前時間
@@ -344,8 +345,7 @@ def Add_MM_Take_Date(Ticket_No):
 
         print(f"已為Ticket_No {Ticket_No} 追加 MM_Take_Date 資訊：{current_time}")
 
-        # 記錄操作
-        Write_Raw_Log('Add_MM_Take_Date', 'Edit', Ticket_No)
+        logging.info('Add_MM_Take_Date')
 
     else:
         print(f"檔案 {file_path} 不存在。")
@@ -353,11 +353,8 @@ def Add_MM_Take_Date(Ticket_No):
 
 # 回傳 MM 未收清單
 def Get_In_MM_Ticket_List():
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_In_MM_List.csv')
 
     In_MM_List = []
@@ -455,11 +452,8 @@ def Get_Expiry_Date_From_Ticket_No(Ticket_No):
 
 # 從 Ticket List 透過 User_ID 查詢 User_UID
 def Get_User_UID_From_User_ID(User_ID, ticket_number):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_Shop_Ticket.csv')
 
     # 讀取 CSV 檔案
@@ -514,13 +508,12 @@ def Get_Grey_List_Pass_Check(User_UID):
 
     except FileNotFoundError:
         print(f"找不到文件：{file_path}")
-        Write_Raw_Log('Get_Grey_List_Pass_Check', 'Check',
-                      'file not found:{}'.format(file_path))
+        logging.critical('file not found:{}'.format(file_path))
         return True
     except Exception as e:
         print(f"讀取文件時發生錯誤：{e}")
-        Write_Raw_Log('Get_Grey_List_Pass_Check',
-                      'Check', 'error code:{}'.format(e))
+
+        logging.critical('error code:{}'.format(e))
         return True
 
     return total_score <= threshold_score
@@ -571,7 +564,7 @@ def Add_Error_Return_Log(Ticker_No, Ticket_Owner, Input_Error_Type, Time=None):
 
     log_entry = [Time, Ticker_No, Ticket_Owner, Input_Error_Type]
 
-    Write_Raw_Log('Add_Error_Return_Log', 'write', log_entry)
+    logging.warning('Add_Error_Return_Log:{}'.format(log_entry))
 
     # 開啟 CSV 檔案，如果不存在就建立新檔案，並寫入資料
     with open(file_path, mode='a', newline='') as csv_file:
@@ -628,38 +621,11 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=N
         writer.writerow(log_entry)
 
 
-# 用於寫未處理通用 log
-def Write_Raw_Log(Def_Name, Action, Raw_Log, Time=None):
-    # 如果未提供時間，則使用當前時間
-    if Time is None:
-        Time = datetime.datetime.now().isoformat()
-
-    log_entry = [Time, Def_Name, Action, Raw_Log]
-
-    # 跨平台的檔案路徑
-    csv_file_path = os.path.join("csv", "raw_log.csv")
-
-    # 建立 CSV 檔案夾，如果不存在
-    os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
-
-    # 開啟 CSV 檔案，如果不存在就建立新檔案，並寫入資料
-    with open(csv_file_path, mode='a', newline='') as csv_file:
-        writer = csv.writer(csv_file)
-
-        # 如果檔案是空的，就寫入欄位名稱
-        if csv_file.tell() == 0:
-            writer.writerow(["Time", "Def_Name", "Action", "Raw_Log"])
-
-        writer.writerow(log_entry)
-
-
 # 輸入 Ticket_No 得知並回傳 User_ID
 def Get_Ticket_User_ID_By_Ticket_No(Ticket_No):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
 
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_Shop_Ticket.csv')
 
     try:
@@ -695,9 +661,8 @@ def Credits_MM_Receive_Archiving(User_ID, Credits):
     data = [current_time, User_ID, Credits]
 
     # CSV 檔案路徑
-    current_directory = os.path.dirname(os.path.abspath(__file__))
     csv_file_path = os.path.join(
-        current_directory, 'csv', 'HV_RTS_Credits.csv')
+        csv_directory, 'HV_RTS_Credits.csv')
 
     # 寫入資料到 CSV 檔案
     with open(csv_file_path, mode='a', newline='') as file:
