@@ -9,13 +9,18 @@ for hentaiverse free item shop
 可以更多，可自行更改 csv/free_shop_last_post.csv.
 
 # config.ini 設定
-HV_Equip_Rental_Shop_ID =  
-HV_Equip_Rental_Shop_UID =  
+請將 config_sample.ini 改名成 config_sample.ini 進行使用
+HV_Free_Shop_ID =  
+HV_Free_Shop_UID =  
 ipb_pass_hash =  
 ipb_session_id =  
+Check_Forums_URL:檢查的論壇Post，請提供主樓網址，例如:https://forums.e-hentai.org/index.php?showtopic=257252
+Check_Interval:執行間隔(Sec)
+
 
 # free_shop_order.csv 的格式
 範例可參考 csv/free_shop_order_setting.csv
+若發現不在 csv/item_list.csv 上的道具，可回報
 
 | 欄位名稱 | 說明 | 取值與限制 |
 |----------|----------|----------|

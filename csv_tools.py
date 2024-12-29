@@ -31,7 +31,7 @@ config.read(config_path, encoding="utf-8")
 
 # 設置日誌
 Log_Mode = config.get('Log', 'Log_Mode')
-Log_Format = '%(asctime)s %(filename)s %(levelname)s:%(message)s'  # 日誌格式
+Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'
 log_file_path = os.path.join(
     current_directory, 'log', 'csv_tools.log')
 logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
@@ -48,8 +48,8 @@ def check_folder_path_exists(folder_Path: os.path):
 
 # 讀取配置文件
 config.read('config.ini')
-HV_Equip_Rental_Shop_ID = config.get('Account', 'HV_Equip_Rental_Shop_ID')
-HV_Equip_Rental_Shop_UID = config.get('Account', 'HV_Equip_Rental_Shop_UID')
+HV_Free_Shop_ID = config.get('Account', 'HV_Free_Shop_ID')
+HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
 
 
 def check_csv_exists(file_path: os.path, default_headers: list):
@@ -170,16 +170,20 @@ class Check_Transaction():
         """
         # 取得當前目錄
         self.current_directory = os.path.dirname(os.path.abspath(__file__))
-        # 檔案路徑
-        self.file_path = os.path.join(
-            self.current_directory, 'csv', 'Check_Transaction.csv')
-
         # csv 資料夾路徑
         self.csv_folder_path = os.path.join(self.current_directory, 'csv')
+        # 檔案路徑
+        self.file_path = os.path.join(
+            self.csv_folder_path, 'Check_Transaction.csv')
 
         # csv_back 資料夾路徑
         self.csv_back_folder_path = os.path.join(
             self.current_directory, 'csv_back')
+        check_folder_path_exists(self.current_directory)
+        check_folder_path_exists(self.csv_back_folder_path)
+
+        headers = ['Time', 'Start', 'End']
+        check_csv_exists(self.file_path, headers)
 
         self.current_time = datetime.datetime.now().isoformat()
 
@@ -247,8 +251,7 @@ class Check_Transaction():
             rows = list(csvreader)
 
         if not rows:
-            Write_Raw_Log('Check_Transaction.Check',
-                          'Check (No data, returning True)', self.current_time)
+            logging.info('Check (No data, returning True)')
             return True
 
         # 檢查是否有行
@@ -259,14 +262,10 @@ class Check_Transaction():
                 if last_row.get('Start') == 'True':
                     if last_row.get('End') == 'True':
                         # 有開始有結束，則回傳 True
-                        Write_Raw_Log('Check_Transaction.Check',
-                                      'Check (True)', self.current_time)
                         logging.info('tag check pass')
                         return True
                     elif last_row.get('End') == 'False':
                         # 有開始沒有結束，則回傳 False
-                        Write_Raw_Log('Check_Transaction.Check',
-                                      'Check (False)', self.current_time)
                         logging.warning('tag check fail')
                         return False
 
@@ -280,7 +279,6 @@ class Check_Transaction():
         files = os.listdir(self.csv_folder_path)
         exclude_file = [
             'Check_Transaction.csv',
-            'raw_log.csv'
         ]
 
         # 遍歷所有檔案，排除指定檔案，進行複製
@@ -557,15 +555,14 @@ def Get_In_MM_Ticket_List():
         return In_MM_List
 
 
-# 移除 MM 還沒收的 Ticket_No 標記
 def Untag_In_MM_Ticket(Ticket_No):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-
+    """
+    移除 MM 還沒收的 Ticket_No 標記
+    """
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_In_MM_List.csv')
-    temp_file_path = os.path.join(current_directory, 'csv',
+    temp_file_path = os.path.join(csv_directory,
                                   'HV_Equip_In_MM_List_temp.csv')
 
     # 開啟 CSV 檔案，讀取資料，並在暫存文件中寫入不包含指定 Ticket_No 的行
@@ -587,16 +584,15 @@ def Untag_In_MM_Ticket(Ticket_No):
     os.replace(temp_file_path, file_path)
 
     # 記錄移除操作
-    Write_Raw_Log('Untag_In_MM_Ticket', 'Remove', Ticket_No)
+    logging.info('untag Ticket_No:{}'.format(Ticket_No))
 
 
-# 標記 MM 還沒收的 Ticket_No
 def Tag_In_MM_Ticket(Ticket_No):
-    # 取得當前目錄
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-
+    """
+    標記 MM 還沒收的 Ticket_No
+    """
     # 檔案路徑
-    file_path = os.path.join(current_directory, 'csv',
+    file_path = os.path.join(csv_directory,
                              'HV_Equip_In_MM_List.csv')
 
     log_entry = [Ticket_No]
@@ -612,7 +608,7 @@ def Tag_In_MM_Ticket(Ticket_No):
 
         writer.writerow(log_entry)
 
-    Write_Raw_Log('Tag_In_MM_Ticket', 'Add', log_entry)
+    logging.info('tag Ticket_No:{}'.format(Ticket_No))
 
 
 # 透過裝備網址取得當前租借者UID
@@ -858,18 +854,18 @@ def Add_Error_Return_Log(Ticker_No, Ticket_Owner, Input_Error_Type, Time=None):
 
 
 # 用於記錄錯誤的 Ticket
-def Add_Error_Ticket_Log(Post_Number, Post_ID, Order_Number, User_ID, Input_Error_Type, Time=None):
+def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=None):
     '''
     type list:
-    Non-Integer-Value // 錯誤數值
-    Greater-Than-The-Limit-Days // 超過天數
-    Greater-Than-The-Rental-Limit // 超過數量限制
-    Already-Rented // 已出租
-    Player-Level-Is-Lower-Than-Equipment-Level // 等級比裝備低
-    Unrecognized-Format // 錯誤格式
-    Already-Edited // 編輯過
-    Equip-ID-Nonexistent // 裝備不存在
-    On-List-User // 黑名單
+        Unrecognized-Format-Part-Not-1:回應是多段的字詞
+        Too-Many-Order:order數量超過限制
+        Need-Wait-Cool-Time:還沒長於cooltime
+        Player-Level-Is-Higher-Than-Order-Require:等於高於item_suit要求等級
+        Player-Level-Is-Lower-Than-Order-Require:等於低於item_suit要求等級
+        Unrecognized-Format:錯誤格式
+        Already-Edited:編輯過
+        On-List-User:黑名單
+        Unknown-Error:還沒定義的錯誤
     '''
 
     # 取得當前目錄
@@ -886,10 +882,11 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, Order_Number, User_ID, Input_Erro
     if Time is None:
         Time = datetime.datetime.now().isoformat()
 
-    log_entry = [Time, Post_Number, Order_Number, Post_ID,
+    log_entry = [Time, Post_Number, Post_ID,
                  User_ID, Input_Error_Type]
 
-    Write_Raw_Log('Add_Error_Ticket_Log', 'write', log_entry)
+    # Write_Raw_Log('Add_Error_Ticket_Log', 'write', log_entry)
+    logging.warning('Add_Error_Ticket_Log Post_Number:{}'.format(Post_Number))
 
     # 開啟 CSV 檔案，如果不存在就建立新檔案，並寫入資料
     with open(file_path, mode='a', newline='') as csv_file:
@@ -898,7 +895,7 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, Order_Number, User_ID, Input_Erro
         # 如果檔案是空的，就寫入欄位名稱
         if csv_file.tell() == 0:
             writer.writerow(
-                ["Time", "Post_Number", "Order_Number",  "Post_ID", "User_ID", "Input_Error_Type"])
+                ["Time", "Post_Number", "Post_ID", "User_ID", "Input_Error_Type"])
 
         writer.writerow(log_entry)
 
@@ -1296,8 +1293,8 @@ def Equip_MM_Receive_Archiving_Check_Found(User_ID, Equip_URL):
             if rows[index_to_modify]['Rental_Status'] == 'Rental':
                 if index_to_modify is not None:
                     # 修改找到的資訊
-                    rows[index_to_modify]['Equip_Current_Owner_ID'] = HV_Equip_Rental_Shop_ID
-                    rows[index_to_modify]['Equip_Current_Owner_UID'] = HV_Equip_Rental_Shop_UID
+                    rows[index_to_modify]['Equip_Current_Owner_ID'] = HV_Free_Shop_ID
+                    rows[index_to_modify]['Equip_Current_Owner_UID'] = HV_Free_Shop_UID
                     rows[index_to_modify]['Rental_Status'] = 'Free'
                     del rows[index_to_modify]['Expiry_Date']
 

@@ -12,6 +12,9 @@ import csv
 import sys
 from collections import defaultdict
 import forums_crawler
+import hv_mmlib
+import csv_tools
+import traceback
 # endregion
 
 # 指定時區
@@ -27,9 +30,15 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
     print('created {} folder'.format(log_dir))
 
+# 如果 config.ini 不存在則將 sample 改名拿來用
 if not os.path.exists(os.path.join(current_Directory, 'config.ini')):
     os.rename(os.path.join(current_Directory, 'config_sample.ini'),
               os.path.join(current_Directory, 'config.ini'))
+
+# 如果 free_shop_last_post_sample.csv 不存在則將 free_shop_last_post_sample.csv 改名拿來用
+if not os.path.exists(os.path.join(csv_directory, 'free_shop_last_post.csv')):
+    os.rename(os.path.join(csv_directory, 'free_shop_last_post_sample.csv'),
+              os.path.join(csv_directory, 'free_shop_last_post.csv'))
 
 # Load configparser
 config = configparser.ConfigParser()
@@ -39,13 +48,19 @@ config.read(config_path, encoding="utf-8")
 
 # 設置日誌
 Log_Mode = config.get('Log', 'Log_Mode')
-Log_Format = '%(asctime)s %(filename)s %(levelname)s:%(message)s'
+Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'
 log_file_path = os.path.join(
     current_Directory, 'log', 'sample.log')
 logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                     format=Log_Format,
                     handlers=[logging.FileHandler(log_file_path, 'a', 'utf-8'),
                               logging.StreamHandler()])
+
+
+# 讀取店家資訊
+HV_Free_Shop_ID = config.get('Account', 'HV_Free_Shop_ID')
+HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
+Shop_Check_Interval = config.getint('Shop', 'Check_Interval')
 
 
 def check_folder_path_exists(folder_Path: os.path):
@@ -162,21 +177,120 @@ def get_free_shop_order_setting(file_path: os.path):
     return order_setting
 
 
+def warning_log_processing(warning_log: list):
+    """
+    記錄錯誤的ticket資訊
+    """
+    if warning_log:
+        logging.info('warning_log:{}'.format(warning_log))
+        logging.warning('Have New Tick')
+        for warning_log_data in warning_log:
+            post_number = warning_log_data['post_number']
+            Post_ID = warning_log_data['Post_ID']
+            User_ID = warning_log_data['User_ID']
+            User_UID = warning_log_data['User_UID']
+            Input_Error_Type = warning_log_data['Input_Error_Type']
+            csv_tools.Add_Error_Ticket_Log(
+                post_number, Post_ID, User_ID, Input_Error_Type)
+
+            # TODO 還沒做靠 request 做 post edit 的功能
+
+    else:
+        logging.info('No Error Tick')
+
+
+def ticket_info_processing(shop_order_setting: dict, ticket_info: list):
+    """
+    ticket 處理的子程式
+    輸入變數:
+        shop_order_setting:從get_free_shop_order_setting()取得的設定dict
+        ticket_info:從forums_crawler.Get_Forums_Ticket()取得的list
+
+    """
+    if ticket_info:
+        logging.info('ticket_info:{}'.format(ticket_info))
+        logging.warning('Have New Tick')
+
+        for ticket_info_data in ticket_info:
+            order_suit = ticket_info_data['order_suit']
+            post_number = ticket_info_data['post_number']
+            user_id = ticket_info_data['User_ID']
+            user_uid = ticket_info_data['User_UID']
+            user_level = ticket_info_data['User_Level']
+            ticket_no = ticket_info_data['Ticket_No']
+
+            subject_text = "{}'s Free Shop Ticket {}".format(
+                HV_Free_Shop_ID, ticket_no)
+            body_text = "Hello {}, Your supplies have arrived".format(user_id)
+            hv_mmlib.send_mm_with_item(
+                shop_order_setting[order_suit]['item_info'], user_id, subject_text, body_text)
+
+            # TODO 還沒做 hv_mmlib 的 check 擴充
+            # csv_tools.Tag_In_MM_Ticket(ticket_no)
+
+            time.sleep(1)
+    else:
+        logging.info('No New Tick')
+
+
 def main():
+
+    logging.warning('Free Shop is initialization')
+
     shop_setting_csv_path = os.path.join(
         csv_directory, 'free_shop_order_setting.csv')
-    temp = get_free_shop_order_setting(shop_setting_csv_path)
+    shop_order_setting = get_free_shop_order_setting(shop_setting_csv_path)
 
-    Ticket_Info, Warning_Log = forums_crawler.Get_Forums_Ticket()
-    print('======================')
-    print('Ticket_Info:{}, Warning_Log:{}'.format(Ticket_Info, Warning_Log))
+    check_transaction = csv_tools.Check_Transaction()
 
-    # # print(temp)
-    # for a, b in temp.items():
-    #     print(a)
-    #     print(b)
+    try:
 
-    pass
+        # 上一次完整檢查有結束則執行
+        if check_transaction.Check():
+
+            # 檢查開始的備份
+            check_transaction.Backup()
+            # 檢查開始標記
+            check_transaction.Start()
+
+            # 爬取論壇 post 資訊
+            ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
+
+            ticket_info_processing(shop_order_setting, ticket_info)
+            warning_log_processing(warning_log)
+
+            # 檢查結束標記
+            check_transaction.End()
+            # 休息180秒
+            logging.warning('Waiting {}sec'.format((Shop_Check_Interval-20)))
+            time.sleep((Shop_Check_Interval-20))
+            logging.warning('Will be check in 20sec')
+            time.sleep(20)
+            logging.warning('Check Start')
+
+        # 上次檢查異常中止，進行 Rollback
+        else:
+            # 進行 Rollback
+            check_transaction.Rollback()
+
+            # 關閉狀態
+            check_transaction.End()
+
+            logging.critical(
+                'Rollback End,Waiting Check Loop Start,Wait 300sec')
+
+            # Rollback 後等待 300 秒
+            time.sleep(300)
+
+    except Exception as e:
+        # 在這裡處理異常，並印出完整的錯誤訊息
+        traceback.print_exc()
+        # 在這裡處理異常，並印出錯誤訊息
+        error_message = "遇到錯誤：{}".format(e)
+        logging.critical(error_message)
+
+        # 等待 300 秒
+        time.sleep(300)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ config.read(config_path, encoding="utf-8")
 
 # 設置日誌
 Log_Mode = config.get('Log', 'Log_Mode')
-Log_Format = '%(asctime)s %(filename)s %(levelname)s:%(message)s'  # 日誌格式
+Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'
 log_file_path = os.path.join(
     current_directory, 'log', 'forums_carwler.log')
 logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
@@ -73,7 +73,7 @@ def get_cookie():
 
     cookies = {}
     ipb_member_id_value = config.get(
-        'Account', 'HV_Equip_Rental_Shop_UID')
+        'Account', 'HV_Free_Shop_UID')
     ipb_pass_hash_value = config.get('Account', 'ipb_pass_hash')
 
     cookies = {
@@ -346,6 +346,7 @@ def Get_Forums_Ticket():
                     'post_number': post_number,
                     'Post_ID': Post_ID,
                     'User_ID': User_ID,
+                    'User_UID': User_UID,
                     'Input_Error_Type': 'Unrecognized-Format-Part-Not-1'
                 }
                 Warning_Log.append(Warning_Log_Temp)
@@ -356,6 +357,7 @@ def Get_Forums_Ticket():
                     'post_number': post_number,
                     'Post_ID': Post_ID,
                     'User_ID': User_ID,
+                    'User_UID': User_UID,
                     'Input_Error_Type': 'Unrecognized-Format'
                 }
                 Warning_Log.append(Warning_Log_Temp)
@@ -366,6 +368,7 @@ def Get_Forums_Ticket():
                     'post_number': post_number,
                     'Post_ID': Post_ID,
                     'User_ID': User_ID,
+                    'User_UID': User_UID,
                     'Input_Error_Type': 'On-List-User'
                 }
                 Warning_Log.append(Warning_Log_Temp)
@@ -387,6 +390,7 @@ def Get_Forums_Ticket():
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Player-Level-Is-Lower-Than-Order-Require'
             }
             Warning_Log.append(Warning_Log_Temp)
@@ -397,16 +401,18 @@ def Get_Forums_Ticket():
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Player-Level-Is-Higher-Than-Order-Require'
             }
             Warning_Log.append(Warning_Log_Temp)
 
         # *檢查order時間間隔
-        elif not csv_tools.check_user_has_ticket_in_time_list(User_UID, free_shop_order_setting_data[parts]['item_suit_cold_time_day'], response):
+        elif not csv_tools.check_user_has_ticket_in_time_list(User_UID, free_shop_order_setting_data[parts]['item_suit_cool_time_day'], response):
             Warning_Log_Temp = {
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Need-Wait-Cool-Time'
             }
             Warning_Log.append(Warning_Log_Temp)
@@ -416,16 +422,18 @@ def Get_Forums_Ticket():
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Too-Many-Order'
             }
             Warning_Log.append(Warning_Log_Temp)
 
         # *檢查編輯狀態
-        elif not post_edited_ststus:
+        elif post_edited_ststus:
             Warning_Log_Temp = {
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Already-Edited'
             }
             Warning_Log.append(Warning_Log_Temp)
@@ -438,6 +446,7 @@ def Get_Forums_Ticket():
                 'post_number': post_number,
                 'Post_ID': Post_ID,
                 'User_ID': User_ID,
+                'User_UID': User_UID,
                 'Input_Error_Type': 'Unknown-Error'
             }
             Warning_Log.append(Warning_Log_Temp)
