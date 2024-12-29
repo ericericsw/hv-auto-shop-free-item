@@ -1,5 +1,6 @@
 # 排除
 log/
+csv_back/
 csv/*
 __pycache__/
 config.ini
@@ -8,3 +9,4 @@ sample.py
 # 例外
 !csv/free_shop_order_setting.csv
 !csv/item_list.csv
+!csv/free_shop_last_post_sample.csv
