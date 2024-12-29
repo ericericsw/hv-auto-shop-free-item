@@ -197,12 +197,12 @@ reversed_dict = {v: k for k, v in item_dict.items()}
 def get_cookie():
 
     cookies = {}
-    ipb_member_id_value = config.get('Account', 'ericeric91_UID')
-    ipb_pass_hash_value = config.get('Account', 'ericeric91_ipb_pass_hash')
-    ipb_session_id_value = config.get('Account', 'ericeric91_ipb_session_id')
+    ipb_member_uid_value = config.get('Account', 'HV_Free_Shop_UID')
+    ipb_pass_hash_value = config.get('Account', 'ipb_pass_hash')
+    ipb_session_id_value = config.get('Account', 'ipb_session_id')
 
     cookies = {
-        'ipb_member_id': ipb_member_id_value,
+        'ipb_member_id': ipb_member_uid_value,
         'ipb_pass_hash': ipb_pass_hash_value,
         'ipb_session_id': ipb_session_id_value
     }

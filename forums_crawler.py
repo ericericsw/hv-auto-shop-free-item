@@ -72,12 +72,12 @@ def check_folder_path_exists(folder_Path: os.path):
 def get_cookie():
 
     cookies = {}
-    ipb_member_id_value = config.get(
+    ipb_member_uid_value = config.get(
         'Account', 'HV_Free_Shop_UID')
     ipb_pass_hash_value = config.get('Account', 'ipb_pass_hash')
 
     cookies = {
-        'ipb_member_id': ipb_member_id_value,
+        'ipb_member_id': ipb_member_uid_value,
         'ipb_pass_hash': ipb_pass_hash_value
     }
 
