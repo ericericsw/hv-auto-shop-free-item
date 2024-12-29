@@ -49,3 +49,5 @@ windows:打包後雙擊open_shop.bat
 * post edit
 * MM check
 * item 數量 check
+* 要寫入版本號
+* 要做單次與多次執行開關
