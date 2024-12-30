@@ -58,3 +58,5 @@ Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
 * item 數量 check
 * 要寫入版本號
 * 要做單次與多次執行開關
+* ~~mmlib 的 Hatch 與 C~~
+* mmlib 的裝備發送

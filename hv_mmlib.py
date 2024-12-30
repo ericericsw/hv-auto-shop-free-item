@@ -5,6 +5,7 @@ import csv
 import re
 import logging
 import sys
+from bs4 import BeautifulSoup
 
 if getattr(sys, 'frozen', False):
     # 如果是打包後的可執行文件
@@ -213,16 +214,132 @@ def get_cookie():
     return cookies
 
 
-class mm_write():
+def check_battle_status(response):
+    """
+    檢查是否在戰鬥狀態，不在戰鬥中回應true，在戰鬥中回應false
+    """
+    html_content = response.text
+    # 使用 BeautifulSoup 解析 HTML
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # 將 HTML 轉換為字符串
+    html_str = str(soup)
+
+    # 使用正則表達式檢查是否存在指定的變量
+    battle_token_exists = bool(
+        re.search(r'var battle_token', html_str))
+    battle_new_exists = bool(
+        re.search(r'var battle = new Battle\(\)', html_str))
+
+    # 若在戰鬥中則 check_battle_status 為 False
+    check_battle_status = not (
+        battle_token_exists or battle_new_exists)
+
+    return check_battle_status
+
+
+class MoogleMail():
     def __init__(self, cookies: dict):
-        self.mm_write_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=new'
+        self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
+        self.mm_write_url = self.mm_url + '&filter=new'
+        self.mm_inbox_url = self.mm_url + '&filter=inbox'
+        # self.mm_write_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=new'
         self.cookies = cookies
+        self.mmtoken = None
+
+    def check_status(self):
+        """
+        戰鬥狀態檢查，沒在戰鬥中則回應true，戰鬥中回應false
+        """
+        # 進行 GET 請求並附加 cookie
+        response = requests.get(self.mm_url, cookies=self.cookies)
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                logging.info('The account not in battle')
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('__init__ fail. code:{}'.format(
+                response.status_code))
+            return False
+
+    def inbox_check(self):
+        """
+        檢查inbox並取得inbox列表資訊(單封MM的URL、From、Subject、SentTime、ReadTime)
+        TODO 只做到顯示，還沒做完
+        """
+        # 進行 GET 請求並附加 cookie
+        response = requests.get(self.mm_inbox_url, cookies=self.cookies)
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                logging.info('The account not in battle')
+
+                soup = BeautifulSoup(response.text, 'html.parser')
+                outer_div = soup.find('div', id='mmail_outerlist')
+                if outer_div:
+                    table = outer_div.find('table', id='mmail_list')
+                    if table:
+                        # mail_list = table.find('tbody')
+                        mail_list = table
+                        if mail_list:
+                            rows = mail_list.find_all('tr')
+                            for row in rows:
+                                onclick_attr = row.get('onclick')
+                                if onclick_attr:
+                                    url = re.search(
+                                        r"document\.location='(.*?)'", onclick_attr).group(1)
+                                    print(f"URL: {url}")
+
+                                columns = row.find_all('td')
+                                if columns:
+                                    from_ = columns[0].text.strip()
+                                    subject = columns[1].text.strip()
+                                    sent = columns[2].text.strip()
+                                    read = columns[3].text.strip()
+                                    print(f"From: {from_}, Subject: {
+                                          subject}, Sent: {sent}, Read: {read}")
+                        else:
+                            print("No tbody found in the table.")
+                    else:
+                        print("No table with id 'mmail_list' found.")
+                else:
+                    print("No div with id 'mmail_outerlist' found.")
+
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('__init__ fail. code:{}'.format(
+                response.status_code))
+            return False
+
+    def write_new(self):
+        """
+        新MM撰寫初始化，獲取mmtoken
+        """
         # 進行 GET 請求並附加 cookie
         response = requests.get(self.mm_write_url, cookies=self.cookies)
-        # 使用正則表達式提取 mmtoken
-        self.mmtoken = re.search(
-            r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
-        logging.info('get mm_token:{}'.format(self.mmtoken))
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                # 使用正則表達式提取 mmtoken
+                self.mmtoken = re.search(
+                    r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
+                logging.info('get mm_token:{}'.format(self.mmtoken))
+                return True
+
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('__init__ fail. code:{}'.format(
+                response.status_code))
+            return False
 
     def attach_add_item(self, item_id: str, item_number: int):
         payload = {
@@ -243,12 +360,55 @@ class mm_write():
                 'attach_add_item {}*{} success'.format(item_number, reversed_dict[item_id]))
             return True
         else:
-            logging.warning('attach_add_item fail. code:{},text:{}'.format(
-                response.status_code, response.text))
+            logging.warning(
+                'attach_add_item fail. code:'.format(response.status_code))
             return False
-        # else:
-        #     logging.critical('item_id {} does not exist'.format(item_id))
-        #     return False
+
+    def attach_add_credits(self, credits_number: int):
+        payload = {
+            'mmtoken': self.mmtoken,
+            'action': 'attach_add',
+            'action_value': '0',
+            'select_item': '0',
+            'select_count': credits_number,
+            'select_pane': 'credits',
+            'message_to_name': '',
+            'message_subject': '',
+            'message_body': ''
+        }
+        response = requests.post(
+            self.mm_write_url, data=payload, cookies=self.cookies)
+        if response.status_code == 200:
+            logging.info(
+                'attach_add_credits {}*credits success'.format(credits_number))
+            return True
+        else:
+            logging.warning(
+                'attach_add_credits fail. code:'.format(response.status_code))
+            return False
+
+    def attach_add_hath(self, hath_number: int):
+        payload = {
+            'mmtoken': self.mmtoken,
+            'action': 'attach_add',
+            'action_value': '0',
+            'select_item': '0',
+            'select_count': hath_number,
+            'select_pane': 'hath',
+            'message_to_name': '',
+            'message_subject': '',
+            'message_body': ''
+        }
+        response = requests.post(
+            self.mm_write_url, data=payload, cookies=self.cookies)
+        if response.status_code == 200:
+            logging.info(
+                'attach_add_hath {}*hath success'.format(hath_number))
+            return True
+        else:
+            logging.warning(
+                'attach_add_hath fail. code:'.format(response.status_code))
+            return False
 
     def send(self, rcpt: str, subject: str, body: str):
         if rcpt is None:
@@ -273,11 +433,14 @@ class mm_write():
                 logging.info('sent to {} success'.format(rcpt))
                 return True
             else:
-                logging.warning('send fail. code:{},text:{}'.format(
-                    response.status_code, response.text))
+                logging.warning(
+                    'send fail. code:{}'.format(response.status_code))
                 return False
 
     def discard(self):
+        """
+        相write new的內容通通清掉
+        """
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'discard',
@@ -295,8 +458,8 @@ class mm_write():
             logging.info('mm discard')
             return True
         else:
-            logging.warning('discard fail. code:{},text:{}'.format(
-                response.status_code, response.text))
+            logging.warning(
+                'discard fail. code:{}'.format(response.status_code))
             return False
 
 
@@ -319,11 +482,17 @@ def send_mm_with_item(item_list: list, user_id: str, subject: str, body_text: st
     """
     檢查item_list後發出MM
     """
-    mm_start = mm_write(get_cookie())
+    mm_lib = MoogleMail(get_cookie())
     send_item_list = check_item_list(item_list)
 
     try:
-        if mm_start.discard():
+        # 檢查是不是在戰鬥中
+        if not mm_lib.check_status():
+            logging.error('The account is in battle')
+            return False
+
+        elif mm_lib.write_new():
+            mm_lib.discard()
             counter: int = 0
             item_list_number: int = len(send_item_list)
             rcpt: str = user_id
@@ -332,21 +501,24 @@ def send_mm_with_item(item_list: list, user_id: str, subject: str, body_text: st
 
             for send_item in send_item_list:
                 if counter == 10:
-                    mm_start.send(rcpt, subject_text, body_text)
+                    mm_lib.send(rcpt, subject_text, body_text)
                     counter = 0
-                mm_start.attach_add_item(
+                mm_lib.attach_add_item(
                     item_dict[send_item['item_name'].lower()], send_item['item_number'])
                 counter += 1
                 item_list_number -= 1
                 if item_list_number == 0:
-                    mm_start.send(rcpt, subject_text, body_text)
-
-            mm_start.discard()
-            logging.info('MM has been sent to {},sent item_list:{}'.format(
-                rcpt, send_item_list))
-            logging.warning('MM has been sent to {}'.format(rcpt))
-
-            return True
+                    mm_lib.send(rcpt, subject_text, body_text)
+            # TODO 要等 post 回應內容確認後才能做，不然不知道 send 在戰鬥中收到的東西是否與get一樣
+            # if item_list_number == 0:
+            #     logging.info('MM has been sent to {},sent item_list:{}'.format(
+            #         rcpt, send_item_list))
+            #     logging.warning('MM has been sent to {}'.format(rcpt))
+            #     return True
+            # else:
+            #     logging.error('MM was not sent completely to {},sent item_list:{}'.format(
+            #         rcpt, send_item_list))
+            #     return False
     except ValueError as e:
         logging.critical('setting value issye')
         logging.critical(e)
@@ -355,3 +527,17 @@ def send_mm_with_item(item_list: list, user_id: str, subject: str, body_text: st
 
 # ! 跳行方法仍不知道
 # 跳行是'%0D%0A'
+
+
+# item_list = [{'item_name': 'health draught', 'item_number': 1}]
+# send_mm_with_item(item_list, 'VVFGV', '123', '456')
+
+# mm_lib = MoogleMail(get_cookie())
+# if mm_lib.check_status():
+#     mm_lib.write_new()
+#     mm_lib.discard()
+#     mm_lib.attach_add_item(11191, 1)
+#     mm_lib.send('VVFGV', '123', '456')
+
+# mm_lib = MoogleMail(get_cookie())
+# mm_lib.inbox_check()
