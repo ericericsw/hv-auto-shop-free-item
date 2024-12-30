@@ -1,4 +1,8 @@
 # import libary
+import env_initialization
+import csv_tools
+import hv_mmlib
+import forums_crawler
 import requests
 import json
 import time
@@ -10,11 +14,8 @@ import configparser
 import pytz
 import csv
 import sys
-from collections import defaultdict
-import forums_crawler
-import hv_mmlib
-import csv_tools
 import traceback
+from collections import defaultdict
 # endregion
 
 # 指定時區
@@ -29,21 +30,6 @@ else:
     current_directory = os.path.dirname(os.path.abspath(__file__))
 csv_directory = os.path.join(current_directory, 'csv')
 
-# 檢查工作目錄是否有資料夾，沒有的話建立 log 資料夾
-log_dir = os.path.join(current_directory, 'log')
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-    print('created {} folder'.format(log_dir))
-
-# 如果 config.ini 不存在則將 sample 改名拿來用
-if not os.path.exists(os.path.join(current_directory, 'config.ini')):
-    os.rename(os.path.join(current_directory, 'config_sample.ini'),
-              os.path.join(current_directory, 'config.ini'))
-
-# 如果 free_shop_last_post_sample.csv 不存在則將 free_shop_last_post_sample.csv 改名拿來用
-if not os.path.exists(os.path.join(csv_directory, 'free_shop_last_post.csv')):
-    os.rename(os.path.join(csv_directory, 'free_shop_last_post_sample.csv'),
-              os.path.join(csv_directory, 'free_shop_last_post.csv'))
 
 # Load configparser
 config = configparser.ConfigParser()

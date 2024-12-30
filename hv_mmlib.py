@@ -28,15 +28,6 @@ def check_folder_path_exists(folder_Path: os.path):
         logging.warning(f"資料夾 '{folder_Path}' 已建立。")
 
 
-check_folder_path_exists(log_folder_path)
-check_folder_path_exists(csv_folder_path)
-
-
-# 如果 config.ini 不存在則將 sample 改名拿來用
-if not os.path.exists(os.path.join(current_directory, 'config.ini')):
-    os.rename(os.path.join(current_directory, 'config_sample.ini'),
-              os.path.join(current_directory, 'config.ini'))
-
 # 設定 logging
 Log_Mode = config.get('Log', 'Log_Mode')
 Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'

@@ -1,3 +1,11 @@
+REM Check if PyInstaller is installed
+pyinstaller --version >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo PyInstaller is not installed. Please install it using 'pip install pyinstaller'.
+    exit /b 1
+)
+
+REM If PyInstaller is installed, proceed with the script
 pyinstaller -D forums_shop_main.py
 
 copy config_sample.ini dist\forums_shop_main\config_sample.ini

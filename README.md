@@ -39,10 +39,17 @@ Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
 # 使用方法
 ## 如何使用
 完成設定 config_sample.ini 的設定後：  
-windows:打包後雙擊open_shop.bat
+### windows-exe
+1. 打包 python code(執行pyinstaller_batch.bat)
+2. 移動至 dist\forums_shop_main
+3. 雙擊 open_shop.bat
+
+### windows-python
+1. 雙擊 open_shop_windows_python.bat
 
 ## 如何停止
-關閉cmd或是使用ctrl+c進行終止
+1. 關閉cmd或是使用ctrl+c進行終止
+
 
 # 待開發
 * 戰鬥狀態檢測
