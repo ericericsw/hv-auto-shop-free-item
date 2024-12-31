@@ -690,10 +690,9 @@ def check_user_has_ticket_number(user_uid: str,  item_suit_id: str, item_suit_or
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in reader:
-            if int(row['User_UID']) == user_uid:
-                if row['item_suit_id'] == item_suit_id:
+            if str(row['User_UID']) == str(user_uid):
+                if str(row['Item_Suit']) == str(item_suit_id):
                     ticket_counter = +1
-
     if ticket_counter < item_suit_order_limit:
         return True
     else:
