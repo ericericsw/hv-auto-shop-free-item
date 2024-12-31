@@ -38,9 +38,11 @@ Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
 
 # 使用方法
 ## 如何使用
+安裝 python3.12(含以上)後，在 code/DownloadZIP 或 [這裡](https://github.com/ericericsw/hv-auto-shop-free-item/archive/refs/heads/main.zip) 下載專案
 完成設定 config_sample.ini 的設定後：  
 ### windows-exe
-1. 打包 python code(執行pyinstaller_batch.bat)
+0. 使用 pip install pyinstaller 安裝 pyinstaller 
+1. 打包 python code(執行 pyinstaller_batch.bat)
 2. 移動至 dist\forums_shop_main
 3. 雙擊 open_shop.bat
 
@@ -50,13 +52,13 @@ Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
 ## 如何停止
 1. 關閉cmd或是使用ctrl+c進行終止
 
-
 # 待開發
 * 戰鬥狀態檢測
-* post edit
+* 論壇 post edit
 * MM check
 * item 數量 check
-* 要寫入版本號
+* 寫入版本號
 * 要做單次與多次執行開關
 * ~~mmlib 的 Hatch 與 C~~
 * mmlib 的裝備發送
+* ticket部分需要追加分段處理與完成寄送標記，不然會不知道中斷在哪一個節點
