@@ -13,6 +13,7 @@ import csv_tools
 import forums_shop_main
 import configparser
 import sys
+from typing import List, Dict, TypedDict, Set, Tuple
 # endregion
 
 # 創建 ConfigParser 對象
@@ -59,13 +60,51 @@ logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                               logging.StreamHandler()])
 
 
+class ResponseInfo(TypedDict):
+    Post_ID: int
+    User_ID: str
+    User_UID: str
+    response: str
+    post_edited_ststus: bool
+    post_edited_info: str
+    User_Level: int
+
+
+class ForumsInfo(TypedDict):
+    Post_Number: int
+    Post_ID: int
+    User_ID: str
+    User_UID: str
+    User_Level: int
+    response: str
+    post_edited_ststus: bool
+    post_edited_info: str
+
+
+class Ticket_Info(Dict):
+    order_suit: str
+    post_number: int
+    User_ID: str
+    User_UID: str
+    User_Level: int
+    Ticket_No: int
+
+
+class Warning_Log(Dict):
+    post_number: int
+    Post_ID: int
+    User_ID: str
+    User_UID: str
+    Input_Error_Type: str
+
+
 def check_folder_path_exists(folder_Path: os.path):
     if not os.path.exists(folder_Path):
         os.makedirs(folder_Path)
         logging.warning(f"資料夾 '{folder_Path}' 已建立。")
 
 
-def get_cookie():
+def get_cookie() -> Dict[str, str]:
 
     cookies = {}
     ipb_member_uid_value = config.get(
@@ -80,7 +119,7 @@ def get_cookie():
     return cookies
 
 
-def get_item_suit_id():
+def get_item_suit_id() -> Set[List]:
     item_suit_id_list = []
     shop_order_setting_csv_path = os.path.join(
         csv_directory, 'free_shop_order_setting.csv')
@@ -91,7 +130,7 @@ def get_item_suit_id():
     return set(item_suit_id_list)
 
 
-def get_last_post_number():
+def get_last_post_number() -> int:
     """
     取得上次檢查的最後 Post Number
     """
@@ -157,7 +196,7 @@ def write_last_post_info(last_post_number: int):
 
 
 # 論壇分析爬蟲主體
-def Forums_Respond_Segmentation(soup: BeautifulSoup):
+def Forums_Respond_Segmentation(soup: BeautifulSoup) -> List[ResponseInfo]:
 
     response_info_array = {}
 
@@ -229,7 +268,7 @@ def Forums_Respond_Segmentation(soup: BeautifulSoup):
 
 
 # 輸入網址進行論壇爬蟲
-def Get_Forums_INFO(Forums_URL_Start: str):
+def Get_Forums_INFO(Forums_URL_Start: str) -> List[ForumsInfo]:
 
     Forums_INFO = []
 
@@ -293,7 +332,7 @@ def Get_Forums_INFO(Forums_URL_Start: str):
     return Forums_INFO
 
 
-def Get_Forums_Ticket():
+def Get_Forums_Ticket() -> Tuple[List[Ticket_Info], List[Warning_Log]]:
 
     Ticket_Info = []
     Warning_Log = []
@@ -477,7 +516,7 @@ def clean_date_suffix(date_str):
     return date_str
 
 
-def get_user_id_history_latest(user_uid):
+def get_user_id_history_latest(user_uid: str) -> str:
 
     current_url = 'https://forums.e-hentai.org/index.php?s=&act=profile&CODE=show-display-names&id={}'.format(
         user_uid)
