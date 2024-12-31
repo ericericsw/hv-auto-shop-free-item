@@ -4,8 +4,14 @@ import os
 import csv
 import re
 import logging
+import datetime
+import json
 import sys
+from typing import List, Dict, TypedDict
+import csv_tools
 from bs4 import BeautifulSoup
+import time
+
 
 if getattr(sys, 'frozen', False):
     # 如果是打包後的可執行文件
@@ -21,6 +27,7 @@ config.read(config_path, encoding="utf-8")
 
 csv_folder_path = os.path.join(current_directory, 'csv')
 log_folder_path = os.path.join(current_directory, 'log')
+json_folder_path = os.path.join(current_directory, 'json')
 
 
 def check_folder_path_exists(folder_Path: os.path):
@@ -38,6 +45,44 @@ logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                     format=Log_Format,
                     handlers=[logging.FileHandler(log_file_path, 'a', 'utf-8'),
                               logging.StreamHandler()])
+
+
+class ItemDict(TypedDict):
+    item_name: str
+    item_number: int
+
+
+class TaskItem_to_dict(TypedDict):
+    task_id: int
+    user_id: str
+    subject: str
+    body_text: str
+    data: List[ItemDict]
+    status: str
+
+
+class TaskItem:
+    def __init__(self, task_id: int, user_id: str, subject: str, body_text: str, data: List[ItemDict], status: str = 'Pending'):
+        self.task_id: int = task_id
+        self.user_id: str = user_id
+        self.subject: str = subject
+        self.body_text: str = body_text
+        self.data: List[ItemDict] = data
+        self.status: str = status
+
+    def to_dict(self) -> TaskItem_to_dict:
+        return {
+            "task_id": self.task_id,
+            "user_id": self.user_id,
+            "subject": self.subject,
+            "body_text": self.body_text,
+            "data": self.data,
+            "status": self.status
+        }
+
+    def complete(self):
+        self.status: str = 'Finish'
+
 
 item_dict = {
     # Restoratives
@@ -198,7 +243,7 @@ item_dict = {
 reversed_dict = {v: k for k, v in item_dict.items()}
 
 
-def get_cookie():
+def get_cookie() -> Dict[str, str]:
 
     cookies = {}
     ipb_member_uid_value = config.get('Account', 'HV_Free_Shop_UID')
@@ -239,7 +284,7 @@ def check_battle_status(response):
 
 
 class MoogleMail():
-    def __init__(self, cookies: dict):
+    def __init__(self, cookies: Dict[str, str]):
         self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
         self.mm_write_url = self.mm_url + '&filter=new'
         self.mm_inbox_url = self.mm_url + '&filter=inbox'
@@ -332,7 +377,6 @@ class MoogleMail():
                     r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
                 logging.info('get mm_token:{}'.format(self.mmtoken))
                 return True
-
             else:
                 logging.error('The account is in battle')
                 return False
@@ -341,7 +385,7 @@ class MoogleMail():
                 response.status_code))
             return False
 
-    def attach_add_item(self, item_id: str, item_number: int):
+    def attach_add_item(self, item_id: int, item_number: int):
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'attach_add',
@@ -355,13 +399,19 @@ class MoogleMail():
         }
         response = requests.post(
             self.mm_write_url, data=payload, cookies=self.cookies)
+
         if response.status_code == 200:
-            logging.info(
-                'attach_add_item {}*{} success'.format(item_number, reversed_dict[item_id]))
-            return True
+            if check_battle_status(response):
+                logging.info(
+                    'attach_add_item {}*{} success'.format(item_number, reversed_dict[item_id]))
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
         else:
             logging.warning(
                 'attach_add_item fail. code:'.format(response.status_code))
+            logging.warning(response.text)
             return False
 
     def attach_add_credits(self, credits_number: int):
@@ -379,9 +429,13 @@ class MoogleMail():
         response = requests.post(
             self.mm_write_url, data=payload, cookies=self.cookies)
         if response.status_code == 200:
-            logging.info(
-                'attach_add_credits {}*credits success'.format(credits_number))
-            return True
+            if check_battle_status(response):
+                logging.info(
+                    'attach_add_credits {}*credits success'.format(credits_number))
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
         else:
             logging.warning(
                 'attach_add_credits fail. code:'.format(response.status_code))
@@ -402,9 +456,13 @@ class MoogleMail():
         response = requests.post(
             self.mm_write_url, data=payload, cookies=self.cookies)
         if response.status_code == 200:
-            logging.info(
-                'attach_add_hath {}*hath success'.format(hath_number))
-            return True
+            if check_battle_status(response):
+                logging.info(
+                    'attach_add_hath {}*hath success'.format(hath_number))
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
         else:
             logging.warning(
                 'attach_add_hath fail. code:'.format(response.status_code))
@@ -430,8 +488,12 @@ class MoogleMail():
             response = requests.post(
                 self.mm_write_url, data=payload, cookies=self.cookies)
             if response.status_code == 200:
-                logging.info('sent to {} success'.format(rcpt))
-                return True
+                if check_battle_status(response):
+                    logging.info('sent to {} success'.format(rcpt))
+                    return True
+                else:
+                    logging.error('The account is in battle')
+                    return False
             else:
                 logging.warning(
                     'send fail. code:{}'.format(response.status_code))
@@ -455,15 +517,19 @@ class MoogleMail():
         response = requests.post(
             self.mm_write_url, data=payload, cookies=self.cookies)
         if response.status_code == 200:
-            logging.info('mm discard')
-            return True
+            if check_battle_status(response):
+                logging.info('mm discard')
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
         else:
             logging.warning(
                 'discard fail. code:{}'.format(response.status_code))
             return False
 
 
-def check_item_list(item_list):
+def check_item_list(item_list: List[ItemDict]) -> List[ItemDict]:
     """
     檢查是否有不在item list上的item，假如有錯誤則略過
     """
@@ -478,66 +544,171 @@ def check_item_list(item_list):
     return send_item_list
 
 
-def send_mm_with_item(item_list: list, user_id: str, subject: str, body_text: str):
+def add_mm_task(item_list: List[ItemDict], user_id: str, subject: str, body_text: str):
     """
-    檢查item_list後發出MM
+    檢查item_list後，將發送訊息轉換為task進行儲存
     """
-    mm_lib = MoogleMail(get_cookie())
     send_item_list = check_item_list(item_list)
+    taskmanager = TaskManager()
+    temp_data = {
+        "user_id": user_id,
+        "subject": subject,
+        "body_text": body_text,
+        "data": send_item_list}
+    taskmanager.create_tasks(temp_data)
 
-    try:
-        # 檢查是不是在戰鬥中
-        if not mm_lib.check_status():
-            logging.error('The account is in battle')
-            return False
 
-        elif mm_lib.write_new():
-            mm_lib.discard()
-            counter: int = 0
-            item_list_number: int = len(send_item_list)
-            rcpt: str = user_id
-            subject_text: str = subject
-            body_text: str = body_text
-
-            for send_item in send_item_list:
-                if counter == 10:
-                    mm_lib.send(rcpt, subject_text, body_text)
-                    counter = 0
-                mm_lib.attach_add_item(
-                    item_dict[send_item['item_name'].lower()], send_item['item_number'])
-                counter += 1
-                item_list_number -= 1
-                if item_list_number == 0:
-                    mm_lib.send(rcpt, subject_text, body_text)
-            # TODO 要等 post 回應內容確認後才能做，不然不知道 send 在戰鬥中收到的東西是否與get一樣
-            # if item_list_number == 0:
-            #     logging.info('MM has been sent to {},sent item_list:{}'.format(
-            #         rcpt, send_item_list))
-            #     logging.warning('MM has been sent to {}'.format(rcpt))
-            #     return True
-            # else:
-            #     logging.error('MM was not sent completely to {},sent item_list:{}'.format(
-            #         rcpt, send_item_list))
-            #     return False
-    except ValueError as e:
-        logging.critical('setting value issye')
-        logging.critical(e)
+def check_pending_mm() -> bool:
+    """
+    有pending的MM則回應true
+    """
+    task_manager_csv_path = os.path.join(csv_folder_path, 'task_manager.csv')
+    incomplete_tasks = 0
+    with open(task_manager_csv_path, 'r', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if not row['end_time']:
+                incomplete_tasks += 1
+    if incomplete_tasks == 0:
         return False
+    else:
+        return True
+
+
+def send_mm_with_item():
+    """
+    發送task的MM
+    """
+    taskmanager = TaskManager()
+    pending_tasks = taskmanager.list_pending_tasks()
+    task_ids = [task.task_id for task in pending_tasks]
+
+    for task_id in task_ids:
+
+        mm_lib = MoogleMail(get_cookie())
+        task_data = taskmanager.get_task(task_id).to_dict()
+
+        try:
+            # 檢查是不是在戰鬥中
+            if not mm_lib.check_status():
+                logging.error('The account is in battle')
+                return False
+
+            elif mm_lib.write_new():
+                mm_lib.discard()
+                rcpt: str = task_data['user_id']
+                subject_text: str = task_data['subject']
+                body_text: str = task_data['body_text']
+
+                for send_item in task_data['data']:
+                    if not mm_lib.attach_add_item(
+                            item_dict[send_item['item_name'].lower()], send_item['item_number']):
+                        break
+                    time.sleep(0.5)
+                if mm_lib.send(rcpt, subject_text, body_text):
+                    taskmanager.complete_task(task_id)
+                time.sleep(1)
+
+        except ValueError as e:
+            logging.critical('setting value issye')
+            logging.critical(e)
+
+
+class TaskManager:
+    def __init__(self):
+        self.task_manager_csv_path = os.path.join(
+            csv_folder_path, 'task_manager.csv')
+        headers = ['SN', 'creat_time', 'end_time', 'json_data_name']
+        csv_tools.check_csv_exists(self.task_manager_csv_path, headers)
+        self.tasks = self.load_tasks()
+
+    def load_tasks(self) -> List[TaskItem]:
+        tasks = []
+        try:
+            with open(self.task_manager_csv_path, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    # task_id = int(row['SN'])
+                    task_json_file_path = os.path.join(
+                        json_folder_path, row['json_data_name'])
+                    with open(task_json_file_path, 'r', encoding='utf-8') as json_file:
+                        task_data = json.load(json_file)
+                        task = TaskItem(**task_data)
+                        tasks.append(task)
+        except FileNotFoundError as e:
+            logging.error('FileNotFoundError:{}'.format(e))
+        return tasks
+
+    def save_task_to_csv(self, task: TaskItem):
+        """
+        建立新task資料到csv檔案
+        """
+        with open(self.task_manager_csv_path, 'a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow([task.task_id, datetime.datetime.now(
+            ).isoformat(), '', 'task_{}.json'.format(task.task_id)])
+
+    def save_task_to_json(self, task: TaskItem):
+        """
+        建立新item資訊的json
+        """
+        json_file_path = os.path.join(
+            json_folder_path, 'task_{}.json'.format(task.task_id))
+        with open(json_file_path, 'w', encoding='utf-8') as file:
+            json.dump(task.to_dict(), file, ensure_ascii=False, indent=4)
+
+    def update_task_in_csv(self, task: TaskItem):
+        rows = []
+        headers = []
+        with open(self.task_manager_csv_path, 'r', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            headers = reader.fieldnames
+            for row in reader:
+                if int(row['SN']) == task.task_id:
+                    row['end_time'] = datetime.datetime.now().isoformat()
+                rows.append(row)
+
+        with open(self.task_manager_csv_path, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def create_tasks(self, tasks_info: List[ItemDict]):
+        """
+        建立task，且會以10筆為單位進行task切割
+        """
+        last_sn = 0
+        if self.tasks:
+            last_sn = self.tasks[-1].task_id
+
+        # Split tasks_info into chunks of 10 items each
+        for i in range(0, len(tasks_info['data']), 10):
+            chunk = tasks_info['data'][i:i + 10]
+            task_id = last_sn + 1
+            last_sn += 1
+            task = TaskItem(task_id, tasks_info['user_id'],
+                            tasks_info['subject'], tasks_info['body_text'], chunk)
+            self.tasks.append(task)
+            self.save_task_to_csv(task)
+            self.save_task_to_json(task)
+
+    def complete_task(self, task_id: int):
+        for task in self.tasks:
+            if task.task_id == task_id:
+                task.status = 'Finish'
+                break
+        self.save_task_to_json(task)
+        self.update_task_in_csv(task)
+
+    def list_pending_tasks(self):
+        return [task for task in self.tasks if task.status == 'Pending']
+
+    def get_task(self, task_id: int):
+        for task in self.tasks:
+            if task.task_id == task_id:
+                return task
+        return None
 
 
 # ! 跳行方法仍不知道
 # 跳行是'%0D%0A'
-
-
-# item_list = [{'item_name': 'health draught', 'item_number': 1}]
-# send_mm_with_item(item_list, 'VVFGV', '123', '456')
-
-# mm_lib = MoogleMail(get_cookie())
-# if mm_lib.check_status():
-#     mm_lib.write_new()
-#     mm_lib.discard()
-#     mm_lib.attach_add_item(11191, 1)
-#     mm_lib.send('VVFGV', '123', '456')
-
-# mm_lib = MoogleMail(get_cookie())
-# mm_lib.inbox_check()

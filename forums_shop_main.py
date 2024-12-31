@@ -15,6 +15,7 @@ import pytz
 import csv
 import sys
 import traceback
+from typing import List, Dict, TypedDict
 from collections import defaultdict
 # endregion
 
@@ -54,13 +55,43 @@ Shop_Check_Interval = config.getint('Shop', 'Check_Interval')
 Shop_Test_Mode = config.getboolean('Shop', 'Test_Mode')
 
 
+class Ticket_Info(Dict):
+    order_suit: str
+    post_number: int
+    User_ID: str
+    User_UID: str
+    User_Level: int
+    Ticket_No: int
+
+
+class Warning_Log(Dict):
+    post_number: int
+    Post_ID: int
+    User_ID: str
+    User_UID: str
+    Input_Error_Type: str
+
+
+class ItemDict(TypedDict):
+    item_name: str
+    item_number: int
+
+
+class SuitInfo(TypedDict):
+    item_info: List[ItemDict]
+    item_suit_cool_time_day: int
+    item_suit_order_limit: int
+    item_suit_level_limit_min: int
+    item_suit_level_limit_max: int
+
+
 def check_folder_path_exists(folder_Path: os.path):
     if not os.path.exists(folder_Path):
         os.makedirs(folder_Path)
         logging.warning('created {} folder'.format(folder_Path))
 
 
-def get_item_list():
+def get_item_list() -> List:
     item_list = []
     item_list_csv_path = os.path.join(csv_directory, 'item_list.csv')
     with open(item_list_csv_path, 'r', encoding='utf-8') as csvfile:
@@ -70,7 +101,7 @@ def get_item_list():
     return item_list
 
 
-def get_free_shop_order_setting(file_path: os.path):
+def get_free_shop_order_setting(file_path: os.path) -> Dict[str, SuitInfo]:
     """
     讀取店家設定
 
@@ -168,7 +199,7 @@ def get_free_shop_order_setting(file_path: os.path):
     return order_setting
 
 
-def warning_log_processing(warning_log: list):
+def warning_log_processing(warning_log: List[Warning_Log]):
     """
     記錄錯誤的ticket資訊
     """
@@ -190,7 +221,7 @@ def warning_log_processing(warning_log: list):
         logging.info('No Error Tick')
 
 
-def ticket_info_processing(shop_order_setting: dict, ticket_info: list):
+def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info: List[Ticket_Info]):
     """
     ticket 處理的子程式
     輸入變數:
@@ -202,6 +233,7 @@ def ticket_info_processing(shop_order_setting: dict, ticket_info: list):
         logging.info('ticket_info:{}'.format(ticket_info))
         logging.warning('Have New Tick')
 
+        # 進行task建立
         for ticket_info_data in ticket_info:
             order_suit = ticket_info_data['order_suit']
             post_number = ticket_info_data['post_number']
@@ -214,13 +246,13 @@ def ticket_info_processing(shop_order_setting: dict, ticket_info: list):
                 HV_Free_Shop_ID, ticket_no)
             body_text = "Hello {}, Your supplies have arrived".format(user_id)
             if not Shop_Test_Mode:
-                hv_mmlib.send_mm_with_item(
+                hv_mmlib.add_mm_task(
                     shop_order_setting[order_suit]['item_info'], user_id, subject_text, body_text)
+        # 開始發送MM
+        hv_mmlib.send_mm_with_item()
 
-            # TODO 還沒做 hv_mmlib 的 check 擴充
-            # csv_tools.Tag_In_MM_Ticket(ticket_no)
+        # csv_tools.Tag_In_MM_Ticket(ticket_no)
 
-            time.sleep(1)
     else:
         logging.info('No New Tick')
 
@@ -248,8 +280,12 @@ def main():
             # 爬取論壇 post 資訊
             ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
 
-            ticket_info_processing(shop_order_setting, ticket_info)
-            warning_log_processing(warning_log)
+            if ticket_info:
+                ticket_info_processing(shop_order_setting, ticket_info)
+            if warning_log:
+                warning_log_processing(warning_log)
+            if hv_mmlib.check_pending_mm():
+                hv_mmlib.send_mm_with_item()
 
             # 檢查結束標記
             check_transaction.End()
