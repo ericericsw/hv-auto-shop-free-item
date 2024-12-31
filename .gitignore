@@ -4,6 +4,7 @@ csv_back/
 build/
 dist/
 csv/*
+json/
 __pycache__/
 config.ini
 sample.py
