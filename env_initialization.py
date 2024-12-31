@@ -1,22 +1,13 @@
 # import libary
-import requests
-import json
-import time
-import datetime
-import re
 import logging
 import os
 import configparser
-import pytz
 import sys
 # endregion
 
 """
 資料夾初始化
 """
-
-# 指定時區
-timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
 if getattr(sys, 'frozen', False):
@@ -36,9 +27,11 @@ def check_folder_path_exists(folder_Path: os.path):
 
 csv_dir = os.path.join(current_directory, 'csv')
 log_dir = os.path.join(current_directory, 'log')
+json_dir = os.path.join(current_directory, 'json')
 # 檢查工作目錄是否有資料夾
 check_folder_path_exists(csv_dir)
 check_folder_path_exists(log_dir)
+check_folder_path_exists(json_dir)
 
 
 # 如果 config.ini 不存在則將 sample 改名拿來用
