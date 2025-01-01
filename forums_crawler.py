@@ -169,30 +169,33 @@ def get_last_post_number() -> int:
     return last_post_number
 
 
-# 將檢查的最後一筆 Post Number 寫入 csv
 def write_last_post_info(last_post_number: int):
+    """
+    寫入最後post資訊，如果post number沒改變就不會更新
+    """
     # 追加方式打開 CSV 檔案，將目前的 post_number 追加到後面
-    current_directory = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(csv_directory, 'free_shop_last_post.csv')
     header = ['Time', 'Last_Post_Number', 'Note']
     csv_tools.check_csv_exists(file_path, header)
-    # check_csv_exists(file_path, header)
 
+    # 讀取現有的最後一筆資料
+    last_record = None
     with open(file_path, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         headers = reader.fieldnames
+        for row in reader:
+            last_record = row
 
-    # 寫入資料
-    with open(file_path, 'a', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=headers)
-
-        writer.writerow({
-            'Time': datetime.now().isoformat(),
-            'Last_Post_Number': last_post_number,
-            'Note': ''
-        })
-
-    logging.info('write last_post_number:{}'.format(last_post_number))
+    # 檢查是否需要寫入新資料
+    if last_record is None or int(last_record['Last_Post_Number']) != last_post_number:
+        with open(file_path, 'a', newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers)
+            writer.writerow({
+                'Time': datetime.now().isoformat(),
+                'Last_Post_Number': last_post_number,
+                'Note': ''
+            })
+        logging.info('write last_post_number:{}'.format(last_post_number))
 
 
 # 論壇分析爬蟲主體
