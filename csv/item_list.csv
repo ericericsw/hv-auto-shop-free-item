@@ -1,145 +1,147 @@
-item_name
-Health Draught
-Health Potion
-Health Elixir
-Mana Draught
-Mana Potion
-Mana Elixir
-Spirit Draught
-Spirit Potion
-Spirit Elixir
-Last Elixir
-Infusion of Flames
-Infusion of Frost
-Infusion of Lightning
-Infusion of Storms
-Infusion of Divinity
-Infusion of Darkness
-Scroll of Swiftness
-Scroll of Protection
-Scroll of the Avatar
-Scroll of Absorption
-Scroll of Shadows
-Scroll of Life
-Scroll of the Gods
-Flower Vase
-Bubble-Gum
-ManBearPig Tail
-Holy Hand Grenade of Antioch
-Mithra's Flower
-Dalek Voicebox
-Lock of Blue Hair
-Bunny-Girl Costume
-Hinamatsuri Doll
-Broken Glasses
-Sapling
-Noodly Appendage
-Crystal of Vigor
-Crystal of Finesse
-Crystal of Swiftness
-Crystal of Fortitude
-Crystal of Cunning
-Crystal of Knowledge
-Crystal of Flames
-Crystal of Frost
-Crystal of Lightning
-Crystal of Tempest
-Crystal of Devotion
-Crystal of Corruption
-Monster Chow
-Monster Edibles
-Monster Cuisine
-Happy Pills
-Low-Grade Cloth
-Mid-Grade Cloth
-High-Grade Cloth
-Low-Grade Leather
-Mid-Grade Leather
-High-Grade Leather
-Low-Grade Metals
-Mid-Grade Metals
-High-Grade Metals
-Low-Grade Wood
-Mid-Grade Wood
-High-Grade Wood
-Scrap Cloth
-Scrap Leather
-Scrap Metal
-Scrap Wood
-Energy Cell
-Crystallized Phazon
-Shade Fragment
-Repurposed Actuator
-Defense Matrix Modulator
-Binding of Slaughter
-Binding of Balance
-Binding of Destruction
-Binding of Focus
-Binding of Protection
-Binding of the Fleet
-Binding of the Barrier
-Binding of the Nimble
-Binding of the Elementalist
-Binding of the Heaven-sent
-Binding of the Demon-fiend
-Binding of the Curse-weaver
-Binding of the Earth-walker
-Binding of Surtr
-Binding of Niflheim
-Binding of Mjolnir
-Binding of Freyr
-Binding of Heimdall
-Binding of Fenrir
-Binding of Dampening
-Binding of Stoneskin
-Binding of Deflection
-Binding of the Fire-eater
-Binding of the Frost-born
-Binding of the Thunder-child
-Binding of the Wind-waker
-Binding of the Thrice-blessed
-Binding of the Spirit-ward
-Binding of the Ox
-Binding of the Raccoon
-Binding of the Cheetah
-Binding of the Turtle
-Binding of the Fox
-Binding of the Owl
-Binding of Warding
-Binding of Negation
-Binding of Isaac
-Binding of Friendship
-Legendary Weapon Core
-Legendary Staff Core
-Legendary Armor Core
-Voidseeker Shard
-Aether Shard
-Featherweight Shard
-Amnesia Shard
-Twilight Sparkle Figurine
-Rainbow Dash Figurine
-Applejack Figurine
-Fluttershy Figurine
-Pinkie Pie Figurine
-Rarity Figurine
-Trixie Figurine
-Princess Celestia Figurine
-Princess Luna Figurine
-Apple Bloom Figurine
-Scootaloo Figurine
-Sweetie Belle Figurine
-Big Macintosh Figurine
-Spitfire Figurine
-Derpy Hooves Figurine
-Lyra Heartstrings Figurine
-Octavia Figurine
-Zecora Figurine
-Cheerilee Figurine
-Vinyl Scratch Figurine
-Daring Do Figurine
-Doctor Whooves Figurine
-Berry Punch Figurine
-Bon-Bon Figurine
-Fluffle Puff Figurine
-Angel Bunny Figurine
-Gummy Figurine
+item_name,item_id
+health draught,11191
+health potion,11195
+health elixir,11199
+mana draught,11291
+mana potion,11295
+mana elixir,11299
+spirit draught,11391
+spirit potion,11395
+spirit elixir,11399
+last elixir,11501
+infusion of flames,12101
+infusion of frost,12201
+infusion of lightning,12301
+infusion of storms,12401
+infusion of divinity,12501
+infusion of darkness,12601
+scroll of swiftness,13101
+scroll of protection,13111
+scroll of avatar,13199
+scroll of absorption,13201
+scroll of shadows,13211
+scroll of life,13221
+scroll of gods,13299
+flower vase,19111
+bubble-gum,19131
+manBearPig tail,30016
+holy hand hrenade of antioch,30017
+mithra's flower,30018
+dalek voicebox,30019
+lock of blue hair,30020
+bunny-girl costume,30021
+hinamatsuri doll,30022
+broken glasses,30023
+sapling,30030
+noodly appendage,30032
+Tenbora's Box,30004
+Bronze Coupon,31004
+crystal of vigor,50001
+crystal of finesse,50002
+crystal of swiftness,50003
+crystal of fortitude,50004
+crystal of cunning,50005
+crystal of knowledge,50006
+crystal of flames,50011
+crystal of frost,50012
+crystal of lightning,50013
+crystal of tempest,50014
+crystal of devotion,50015
+crystal of corruption,50016
+monster chow,51001
+monster edibles,51002
+monster cuisine,51003
+happy pills,51011
+low-grade cloth,60001
+mid-grade cloth,60002
+high-grade cloth,60003
+low-grade leather,60004
+mid-grade leather,60005
+high-grade leather,60006
+low-grade metals,60007
+mid-grade metals,60008
+high-grade metals,60009
+low-grade wood,60010
+mid-grade wood,60011
+high-grade wood,60012
+scrap cloth,60051
+scrap leather,60052
+scrap metal,60053
+scrap wood,60054
+energy cell,60071
+crystallized phazon,60101
+shade fragment,60102
+repurposed actuator,60104
+defense matrix modulator,60105
+binding of slaughter,60201
+binding of balance,60202
+binding of destruction,60203
+binding of focus,60204
+binding of protection,60205
+binding of the fleet,60206
+binding of the barrier,60207
+binding of the nimble,60208
+binding of the elementalist,60209
+binding of the heaven-sent,60210
+binding of the demon-fiend,60211
+binding of the curse-weaver,60212
+binding of the earth-walker,60213
+binding of surtr,60215
+binding of niflheim,60216
+binding of mjolnir,60217
+binding of freyr,60218
+binding of heimdall,60219
+binding of fenrir,60220
+binding of dampening,60221
+binding of stoneskin,60222
+binding of deflection,60223
+binding of the fire-eater,60224
+binding of the frost-born,60225
+binding of the thunder-child,60226
+binding of the wind-waker,60227
+binding of the thrice-blessed,60228
+binding of the spirit-ward,60229
+binding of the ox,60230
+binding of the raccoon,60231
+binding of the cheetah,60232
+binding of the turtle,60233
+binding of the fox,60234
+binding of the owl,60235
+binding of warding,60236
+binding of negation,60237
+binding of isaac,60238
+binding of friendship,60239
+legendary weapon core,60402
+legendary staff core,60412
+legendary armor core,60422
+voidseeker shard,61001
+aether shard,61101
+featherweight shard,61501
+amnesia shard,65001
+twilight sparkle figurine,70001
+rainbow dash figurine,70002
+applejack figurine,70003
+fluttershy figurine,70004
+pinkie pie figurine,70005
+rarity figurine,70006
+trixie figurine,70007
+princess celestia figurine,70008
+princess luna figurine,70009
+apple bloom figurine,70010
+scootaloo figurine,70011
+sweetie belle figurine,70012
+big macintosh figurine,70013
+spitfire figurine,70014
+derpy hooves figurine,70015
+lyra heartstrings figurine,70016
+octavia figurine,70017
+zecora figurine,70018
+cheerilee figurine,70019
+vinyl scratch figurine,70020
+daring do figurine,70021
+doctor whooves figurine,70022
+berry punch figurine,70023
+bon-Bon figurine,70024
+fluffle puff figurine,70025
+angel bunny figurine,70101
+gummy figurine,70102
