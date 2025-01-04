@@ -61,6 +61,13 @@ class TaskItem_to_dict(TypedDict):
     status: str
 
 
+class MM_Inbox_Data(TypedDict):
+    mm_from: str
+    subject: str
+    sent_time: str
+    mm_url: str
+
+
 class TaskItem:
     def __init__(self, task_id: int, user_id: str, subject: str, body_text: str, data: List[ItemDict], status: str = 'Pending'):
         self.task_id: int = task_id
@@ -139,6 +146,46 @@ def check_battle_status(response):
     return check_battle_status
 
 
+def add_inbox_mm_info(mm_inbox_data: List[MM_Inbox_Data]):
+    """
+    追加 inbox 資訊
+    """
+
+    try:
+        mm_inbox_file_path = os.path.join(csv_folder_path, 'mm_inbox.csv')
+        header = ['mm_from', 'subject', 'sent_time', 'mm_url']
+        csv_tools.check_csv_exists(mm_inbox_file_path, header)
+
+        # 讀取已存在的 mm_url
+        existing_urls = set()
+        try:
+            with open(mm_inbox_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                headers = reader.fieldnames
+                for row in reader:
+                    existing_urls.add(row['mm_url'])
+        except FileNotFoundError:
+            pass
+
+        # 過濾出尚未加入的資料
+        new_data = [row for row in mm_inbox_data if row['mm_url']
+                    not in existing_urls]
+        # ? 反轉 list
+        # ? 因為 inbox_check 的 for 是從最後一筆資料往前問
+        new_data = new_data[::-1]
+
+        # 寫入新資料到 CSV 檔案
+        with open(mm_inbox_file_path, 'a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers)
+
+            writer.writerows(new_data)
+        return True
+
+    except Exception as e:
+        logging.critical('Error: {}'.format(e))
+        return False
+
+
 class MoogleMail():
     def __init__(self, cookies: Dict[str, str]):
         self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
@@ -170,6 +217,11 @@ class MoogleMail():
     def inbox_check(self):
         """
         檢查inbox並取得inbox列表資訊(單封MM的URL、From、Subject、SentTime、ReadTime)
+        並將新的MM資訊記錄在 mm_inbox.csv 中
+
+        return:
+            檢查成功會回應 true，失敗則 false
+
         TODO 只做到顯示，還沒做完
         """
         # 進行 GET 請求並附加 cookie
@@ -183,34 +235,53 @@ class MoogleMail():
                 outer_div = soup.find('div', id='mmail_outerlist')
                 if outer_div:
                     table = outer_div.find('table', id='mmail_list')
-                    if table:
+                    # 找到所有 <div> 標籤
+                    divs = table.find_all('div')
+                    # 將 ResultSet 轉換為字串
+                    divs_str = ''.join(str(div) for div in divs)
+                    # 檢查字串中是否包含特定子字串
+                    No_New_MM_text = "<div>No New Mail</div>"
+                    if not No_New_MM_text in divs_str:
                         # mail_list = table.find('tbody')
                         mail_list = table
                         if mail_list:
                             rows = mail_list.find_all('tr')
+                            mm_inbox_list = []
                             for row in rows:
                                 onclick_attr = row.get('onclick')
-                                if onclick_attr:
-                                    url = re.search(
-                                        r"document\.location='(.*?)'", onclick_attr).group(1)
-                                    print(f"URL: {url}")
-
                                 columns = row.find_all('td')
-                                if columns:
-                                    from_ = columns[0].text.strip()
-                                    subject = columns[1].text.strip()
-                                    sent = columns[2].text.strip()
-                                    read = columns[3].text.strip()
-                                    print(f"From: {from_}, Subject: {
-                                          subject}, Sent: {sent}, Read: {read}")
+                                if onclick_attr and columns:
+                                    mm_url = re.search(
+                                        r"document\.location='(.*?)'", onclick_attr).group(1)
+                                    # print(f"URL: {mm_url}")
+                                    # from_ = columns[0].text.strip()
+                                    # subject = columns[1].text.strip()
+                                    # sent = columns[2].text.strip()
+                                    # read = columns[3].text.strip()
+                                    # print(f"From: {from_}, Subject: {
+                                    #       subject}, Sent: {sent}, Read: {read},url: {mm_url}")
+
+                                    mm_info: MM_Inbox_Data = {
+                                        'mm_from': columns[0].text.strip(),
+                                        'subject': columns[1].text.strip(),
+                                        'sent_time': columns[2].text.strip(),
+                                        'mm_url': mm_url
+                                    }
+                                    mm_inbox_list.append(mm_info)
+
+                            if add_inbox_mm_info(mm_inbox_list):
+                                return True
+                            else:
+                                logging.critical('add inbox mm info fail')
+                                return False
                         else:
                             print("No tbody found in the table.")
                     else:
-                        print("No table with id 'mmail_list' found.")
+                        logging.info("No New Mail.")
+                        return True
                 else:
-                    print("No div with id 'mmail_outerlist' found.")
-
-                return True
+                    logging.critical("No div with id 'mmail_outerlist' found.")
+                    return False
             else:
                 logging.error('The account is in battle')
                 return False
