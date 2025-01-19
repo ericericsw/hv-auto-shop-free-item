@@ -10,7 +10,9 @@ import sys
 from typing import List, Dict, TypedDict
 import csv_tools
 from bs4 import BeautifulSoup
+from lxml import etree
 import time
+import hv_equiplib
 
 
 if getattr(sys, 'frozen', False):
@@ -59,6 +61,13 @@ class TaskItem_to_dict(TypedDict):
     body_text: str
     data: List[ItemDict]
     status: str
+
+
+class MM_Inbox_Data(TypedDict):
+    mm_from: str
+    subject: str
+    sent_time: str
+    mm_url: str
 
 
 class TaskItem:
@@ -139,6 +148,46 @@ def check_battle_status(response):
     return check_battle_status
 
 
+def add_inbox_mm_info(mm_inbox_data: List[MM_Inbox_Data]):
+    """
+    追加 inbox 資訊
+    """
+
+    try:
+        mm_inbox_file_path = os.path.join(csv_folder_path, 'mm_inbox.csv')
+        header = ['mm_from', 'subject', 'sent_time', 'mm_url']
+        csv_tools.check_csv_exists(mm_inbox_file_path, header)
+
+        # 讀取已存在的 mm_url
+        existing_urls = set()
+        try:
+            with open(mm_inbox_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
+                headers = reader.fieldnames
+                for row in reader:
+                    existing_urls.add(row['mm_url'])
+        except FileNotFoundError:
+            pass
+
+        # 過濾出尚未加入的資料
+        new_data = [row for row in mm_inbox_data if row['mm_url']
+                    not in existing_urls]
+        # ? 反轉 list
+        # ? 因為 inbox_check 的 for 是從最後一筆資料往前問
+        new_data = new_data[::-1]
+
+        # 寫入新資料到 CSV 檔案
+        with open(mm_inbox_file_path, 'a', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers)
+
+            writer.writerows(new_data)
+        return True
+
+    except Exception as e:
+        logging.critical('Error: {}'.format(e))
+        return False
+
+
 class MoogleMail():
     def __init__(self, cookies: Dict[str, str]):
         self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
@@ -148,7 +197,7 @@ class MoogleMail():
         self.cookies = cookies
         self.mmtoken = None
 
-    def check_status(self):
+    def check_status(self) -> bool:
         """
         戰鬥狀態檢查，沒在戰鬥中則回應true，戰鬥中回應false
         """
@@ -163,13 +212,18 @@ class MoogleMail():
                 logging.error('The account is in battle')
                 return False
         else:
-            logging.error('__init__ fail. code:{}'.format(
+            logging.error('check_status fail. code:{}'.format(
                 response.status_code))
             return False
 
-    def inbox_check(self):
+    def inbox_check(self) -> bool:
         """
         檢查inbox並取得inbox列表資訊(單封MM的URL、From、Subject、SentTime、ReadTime)
+        並將新的MM資訊記錄在 mm_inbox.csv 中
+
+        return:
+            檢查成功會回應 true，失敗則 false
+
         TODO 只做到顯示，還沒做完
         """
         # 進行 GET 請求並附加 cookie
@@ -183,34 +237,223 @@ class MoogleMail():
                 outer_div = soup.find('div', id='mmail_outerlist')
                 if outer_div:
                     table = outer_div.find('table', id='mmail_list')
-                    if table:
+                    # 找到所有 <div> 標籤
+                    divs = table.find_all('div')
+                    # 將 ResultSet 轉換為字串
+                    divs_str = ''.join(str(div) for div in divs)
+                    # 檢查字串中是否包含特定子字串
+                    No_New_MM_text = "<div>No New Mail</div>"
+                    if not No_New_MM_text in divs_str:
                         # mail_list = table.find('tbody')
                         mail_list = table
                         if mail_list:
                             rows = mail_list.find_all('tr')
+                            mm_inbox_list = []
                             for row in rows:
                                 onclick_attr = row.get('onclick')
-                                if onclick_attr:
-                                    url = re.search(
-                                        r"document\.location='(.*?)'", onclick_attr).group(1)
-                                    print(f"URL: {url}")
-
                                 columns = row.find_all('td')
-                                if columns:
-                                    from_ = columns[0].text.strip()
-                                    subject = columns[1].text.strip()
-                                    sent = columns[2].text.strip()
-                                    read = columns[3].text.strip()
-                                    print(f"From: {from_}, Subject: {
-                                          subject}, Sent: {sent}, Read: {read}")
+                                if onclick_attr and columns:
+                                    mm_url = re.search(
+                                        r"document\.location='(.*?)'", onclick_attr).group(1)
+                                    # print(f"URL: {mm_url}")
+                                    # from_ = columns[0].text.strip()
+                                    # subject = columns[1].text.strip()
+                                    # sent = columns[2].text.strip()
+                                    # read = columns[3].text.strip()
+                                    # print(f"From: {from_}, Subject: {
+                                    #       subject}, Sent: {sent}, Read: {read},url: {mm_url}")
+
+                                    mm_info: MM_Inbox_Data = {
+                                        'mm_from': columns[0].text.strip(),
+                                        'subject': columns[1].text.strip(),
+                                        'sent_time': columns[2].text.strip(),
+                                        'mm_url': mm_url
+                                    }
+                                    mm_inbox_list.append(mm_info)
+
+                            if add_inbox_mm_info(mm_inbox_list):
+                                return True
+                            else:
+                                logging.critical('add inbox mm info fail')
+                                return False
                         else:
                             print("No tbody found in the table.")
                     else:
-                        print("No table with id 'mmail_list' found.")
+                        logging.info("No New Mail.")
+                        return True
                 else:
-                    print("No div with id 'mmail_outerlist' found.")
+                    logging.critical("No div with id 'mmail_outerlist' found.")
+                    return False
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('inbox_check fail. code:{}'.format(
+                response.status_code))
+            return False
+
+    def read_mm(self, mm_url: str):
+        """
+        輸入 mm_url 來讀取內容資料
+
+        TODO 還沒做回傳與整理，裝備部分可以跟 hv_equiplib 串
+        """
+        response = requests.get(mm_url, cookies=self.cookies)
+        # print(response.text)
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                logging.info('The account not in battle')
+                soup = BeautifulSoup(response.text, 'html.parser')
+                # print(soup.prettify())
+
+                # 提取 MM 左半邊資料
+                mmail_left = soup.find('div', id="mmail_left")
+                # 提取 MM to,from,subject 資訊
+                trs = mmail_left.find_all('tr')
+                temp_list = []
+                # 因元素結構問題，透過 for 迴圈取出並暫存在 list 中
+                for tr in trs:
+                    td = tr.find_all('td')
+                    input_element = td[1].find('input')
+                    temp_list.append(input_element.get('value'))
+                mm_to = temp_list[0]
+                mm_from = temp_list[1]
+                subject = temp_list[2]
+                print(mm_to)
+                print(mm_from)
+                print(subject)
+
+                # 提取 MM body
+                textarea_element = mmail_left.find('textarea')
+                # print(textarea_element.get_text())
+                bodytext = textarea_element.get_text()
+                print(bodytext)
+
+                # 提取 MM 右半邊資料
+                mmail_right = soup.find('div', id="mmail_right")
+
+                # 提取附件資訊
+                mmail_attachpanes = mmail_right.find(
+                    'div', id='mmail_attachpanes')
+                mmail_attachinfo = mmail_attachpanes.find(
+                    'div', id='mmail_attachinfo')
+
+                # 確認有無附件資訊
+                if mmail_attachinfo:
+                    # 提取 2 / 10 items attached
+                    attach_count = mmail_attachinfo.select_one(
+                        '#mmail_attachcount .fc4.fac.fcb div').get_text()
+                    # 提取 2 / 10
+                    attach_count_numbers = ' '.join(attach_count.split()[:3])
+                    print("抽取到的 attach_count:", attach_count_numbers)
+
+                    # 抽取附件清單
+                    attach_list = soup.select(
+                        '#mmail_attachlist > div > div:first-child')
+                    attach_items = [item.get_text() for item in attach_list]
+                    print("抽取到的 attach_items:", attach_items)
+
+                # 提取 裝備資訊
+                script = mmail_right.find('script', type="text/javascript")
+                if script:
+                    # 以 string 方式抽取元素內容，提取 JSON 字串
+                    json_str = script.string.split('var dynjs_eqstore = ')[
+                        1].rstrip('; \n')
+                    # 解析 JSON 資料
+                    data = json.loads(json_str)
+                    # 解析每個項目的 HTML 內容
+                    for key, value in data.items():
+                        html_content = value['d']
+                        soup = BeautifulSoup(html_content, 'html.parser')
+                        # print(f"Item {key}:")
+                        equip_url_part1 = key
+                        # print(value['t'])
+                        equip_name = value['t']
+                        equip_url_part2 = value['k']
+                        # print(value['k'])
+                        print('equip_name:{}'.format(equip_name))
+                        print('equip_url_part1:{}'.format(equip_url_part1))
+                        print('equip_url_part2:{}'.format(equip_url_part2))
+                        # print(equip_url_part2)
+                        equip_url = 'https://hentaiverse.org/equip/{}/{}'.format(
+                            equip_url_part1, equip_url_part2)
+                        print('equip_url:{}'.format(equip_url))
+                        print('---------------------------')
+                    # https://hentaiverse.org/equip/300495653/798b293a94
+
+                # mmail_attachpanes = mmail_right('mmail_attachpanes')
+                # mmail_attachcount = mmail_attachlist.find('mmail_attachcount')
+                # print(mmail_attachlist)
+                # print(mmail_attachcount)
+                # print(mmail_attachpanes)
+
+                # for tr in trs:
+                #     tr_element = soup.find('tr')
+                #     # print(tr_element)
+                #     tds = tr.find('td')
+                #     for td in tds:
+                #         print(td)
+                #         input_element = td.find_all('input')
+                #         print(input_element)
+                # print(tds)
+
+                # tr_element = soup.find(
+                #     'tr', onclick="document.location='https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=2990465'")
+                # # print(tr_element)
+                # tds = tr_element.find_all('td')
+                # mm_from = tds[0].text.strip()
+                # subject = tds[1].text.strip()
+                # sent_time = tds[2].text.strip()
+                # read_time = tds[3].text.strip()
+                # print('mm_from:{}'.format(mm_from))
+                # print('subject:{}'.format(subject))
+                # print('sent_time:{}'.format(sent_time))
+                # print('read_time:{}'.format(read_time))
+
+                # # 逐層選擇元素
+                # # csp_div = soup.find('div', id='mmail_left')
+                # csp_div = soup.find('form', id='mailform')
+                # # csp_div = soup.find('div', id='mmail_outerlist')
+                # if csp_div:
+                #     print(csp_div.prettify())
+                # mainpane_div = csp_div.find('div', id='mainpane')
+                # print(mainpane_div)
+                # csp = soup.find_all(id='mmail_left', recursive=True)
+                # print(csp)
+                # for cs in csp:
+                #     print(cs.get_text())
+                # if csp:
+                #     table = csp.find(id='mainpane')
+                #     print(table)
+                #     if table:
+                #         tbody = table.find('tbody')
+                #         if tbody:
+                #             # nth-child(1) 對應到索引 0
+                #             tr = tbody.find_all('tr')[0]
+                #             if tr:
+                #                 # nth-child(2) 對應到索引 1
+                #                 td = tr.find_all('td')[1]
+                #                 if td:
+                #                     input_element = td.find(
+                #                         'input', {'type': 'text'})
+                #                     print("抓取到的元素:", input_element)
+                # element2 = soup.select(
+                #     '#mmail_left > #mainpane')
+
+                # # 打印結果
+                # print("element", element)
+                # print("element2", element2)
+                # print("csp:", csp)
+                # print("mm_to:", mm_to)
+                # print("mm_from:", mm_from)
+                # print("subject:", subject)
+                # print("body_text:", body_text)
+                # print("number_of_attached:", number_of_attached)
+                # print("attached_list:", attached_list)
 
                 return True
+
             else:
                 logging.error('The account is in battle')
                 return False
@@ -219,7 +462,7 @@ class MoogleMail():
                 response.status_code))
             return False
 
-    def write_new(self):
+    def write_new(self) -> bool:
         """
         新MM撰寫初始化，獲取mmtoken
         """
@@ -237,11 +480,11 @@ class MoogleMail():
                 logging.error('The account is in battle')
                 return False
         else:
-            logging.error('__init__ fail. code:{}'.format(
+            logging.error('write_new fail. code:{}'.format(
                 response.status_code))
             return False
 
-    def attach_add_item(self, item_id: int, item_number: int):
+    def attach_add_item(self, item_id: int, item_number: int) -> bool:
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'attach_add',
@@ -270,7 +513,7 @@ class MoogleMail():
             logging.warning(response.text)
             return False
 
-    def attach_add_credits(self, credits_number: int):
+    def attach_add_credits(self, credits_number: int) -> bool:
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'attach_add',
@@ -297,7 +540,7 @@ class MoogleMail():
                 'attach_add_credits fail. code:'.format(response.status_code))
             return False
 
-    def attach_add_hath(self, hath_number: int):
+    def attach_add_hath(self, hath_number: int) -> bool:
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'attach_add',
@@ -324,7 +567,7 @@ class MoogleMail():
                 'attach_add_hath fail. code:'.format(response.status_code))
             return False
 
-    def send(self, rcpt: str, subject: str, body: str):
+    def send(self, rcpt: str, subject: str, body: str) -> bool:
         if rcpt is None:
             logging.critical('rcpt is None')
         elif subject is None:
@@ -355,7 +598,7 @@ class MoogleMail():
                     'send fail. code:{}'.format(response.status_code))
                 return False
 
-    def discard(self):
+    def discard(self) -> bool:
         """
         相write new的內容通通清掉
         """
@@ -400,18 +643,24 @@ def check_item_list(item_list: List[ItemDict]) -> List[ItemDict]:
     return send_item_list
 
 
-def add_mm_task(item_list: List[ItemDict], user_id: str, subject: str, body_text: str):
+def add_mm_task(item_list: List[ItemDict], user_id: str, subject: str, body_text: str) -> bool:
     """
     檢查item_list後，將發送訊息轉換為task進行儲存
     """
-    send_item_list = check_item_list(item_list)
-    taskmanager = TaskManager()
-    temp_data = {
-        "user_id": user_id,
-        "subject": subject,
-        "body_text": body_text,
-        "data": send_item_list}
-    taskmanager.create_tasks(temp_data)
+    try:
+        send_item_list = check_item_list(item_list)
+        taskmanager = TaskManager()
+        temp_data = {
+            "user_id": user_id,
+            "subject": subject,
+            "body_text": body_text,
+            "data": send_item_list}
+        taskmanager.create_tasks(temp_data)
+
+        return True
+    except ValueError as e:
+        logging.critical('add mm task error:{}'.format(e))
+        return False
 
 
 def check_pending_mm() -> bool:
@@ -419,6 +668,8 @@ def check_pending_mm() -> bool:
     有pending的MM則回應true
     """
     task_manager_csv_path = os.path.join(csv_folder_path, 'task_manager.csv')
+    headers = ['SN', 'creat_time', 'end_time', 'json_data_name']
+    csv_tools.check_csv_exists(task_manager_csv_path, headers)
     incomplete_tasks = 0
     with open(task_manager_csv_path, 'r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
@@ -431,7 +682,7 @@ def check_pending_mm() -> bool:
         return True
 
 
-def send_mm_with_item():
+def send_mm_with_item() -> bool:
     """
     發送task的MM
     """
@@ -465,9 +716,13 @@ def send_mm_with_item():
                     taskmanager.complete_task(task_id)
                 time.sleep(1)
 
+                return True
+
         except ValueError as e:
             logging.critical('setting value issye')
             logging.critical(e)
+
+            return False
 
 
 class TaskManager:

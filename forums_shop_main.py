@@ -53,6 +53,7 @@ HV_Free_Shop_ID = config.get('Account', 'HV_Free_Shop_ID')
 HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
 Shop_Check_Interval = config.getint('Shop', 'Check_Interval')
 Shop_Test_Mode = config.getboolean('Shop', 'Test_Mode')
+Run_Once_Mode = config.getboolean('Shop', 'Run_Once_Mode')
 
 
 class Ticket_Info(Dict):
@@ -267,58 +268,65 @@ def main():
 
     check_transaction = csv_tools.Check_Transaction()
 
-    try:
+    loop_switch = True
 
-        # 上一次完整檢查有結束則執行
-        if check_transaction.Check():
+    while (loop_switch):
+        try:
 
-            # 檢查開始的備份
-            check_transaction.Backup()
-            # 檢查開始標記
-            check_transaction.Start()
+            # 上一次完整檢查有結束則執行
+            if check_transaction.Check():
 
-            # 爬取論壇 post 資訊
-            ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
+                # 檢查開始的備份
+                check_transaction.Backup()
+                # 檢查開始標記
+                check_transaction.Start()
 
-            if ticket_info:
-                ticket_info_processing(shop_order_setting, ticket_info)
-            if warning_log:
-                warning_log_processing(warning_log)
-            if hv_mmlib.check_pending_mm():
-                hv_mmlib.send_mm_with_item()
+                # 爬取論壇 post 資訊
+                ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
 
-            # 檢查結束標記
-            check_transaction.End()
-            # 休息180秒
-            logging.warning('Waiting {}sec'.format((Shop_Check_Interval-20)))
-            time.sleep((Shop_Check_Interval-20))
-            logging.warning('Will be check in 20sec')
-            time.sleep(20)
-            logging.warning('Check Start')
+                if ticket_info:
+                    ticket_info_processing(shop_order_setting, ticket_info)
+                if warning_log:
+                    warning_log_processing(warning_log)
+                if hv_mmlib.check_pending_mm():
+                    hv_mmlib.send_mm_with_item()
 
-        # 上次檢查異常中止，進行 Rollback
-        else:
-            # 進行 Rollback
-            check_transaction.Rollback()
+                # 檢查結束標記
+                check_transaction.End()
+                if Run_Once_Mode:
+                    loop_switch = False
+                else:
+                    # 休息180秒
+                    logging.warning('Waiting {}sec'.format(
+                        (Shop_Check_Interval-20)))
+                    time.sleep((Shop_Check_Interval-20))
+                    logging.warning('Will be check in 20sec')
+                    time.sleep(20)
+                    logging.warning('Check Start')
 
-            # 關閉狀態
-            check_transaction.End()
+            # 上次檢查異常中止，進行 Rollback
+            else:
+                # 進行 Rollback
+                check_transaction.Rollback()
 
-            logging.critical(
-                'Rollback End,Waiting Check Loop Start,Wait 300sec')
+                # 關閉狀態
+                check_transaction.End()
 
-            # Rollback 後等待 300 秒
+                logging.critical(
+                    'Rollback End,Waiting Check Loop Start,Wait 300sec')
+
+                # Rollback 後等待 300 秒
+                time.sleep(300)
+
+        except Exception as e:
+            # 在這裡處理異常，並印出完整的錯誤訊息
+            traceback.print_exc()
+            # 在這裡處理異常，並印出錯誤訊息
+            error_message = "遇到錯誤：{}".format(e)
+            logging.critical(error_message)
+
+            # 等待 300 秒
             time.sleep(300)
-
-    except Exception as e:
-        # 在這裡處理異常，並印出完整的錯誤訊息
-        traceback.print_exc()
-        # 在這裡處理異常，並印出錯誤訊息
-        error_message = "遇到錯誤：{}".format(e)
-        logging.critical(error_message)
-
-        # 等待 300 秒
-        time.sleep(300)
 
 
 if __name__ == "__main__":

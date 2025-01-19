@@ -110,10 +110,12 @@ def get_cookie() -> Dict[str, str]:
     ipb_member_uid_value = config.get(
         'Account', 'HV_Free_Shop_UID')
     ipb_pass_hash_value = config.get('Account', 'ipb_pass_hash')
+    ipb_session_id_value = config.get('Account', 'ipb_session_id')
 
     cookies = {
         'ipb_member_id': ipb_member_uid_value,
-        'ipb_pass_hash': ipb_pass_hash_value
+        'ipb_pass_hash': ipb_pass_hash_value,
+        'ipb_session_id': ipb_session_id_value
     }
 
     return cookies
