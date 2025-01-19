@@ -668,6 +668,8 @@ def check_pending_mm() -> bool:
     有pending的MM則回應true
     """
     task_manager_csv_path = os.path.join(csv_folder_path, 'task_manager.csv')
+    headers = ['SN', 'creat_time', 'end_time', 'json_data_name']
+    csv_tools.check_csv_exists(task_manager_csv_path, headers)
     incomplete_tasks = 0
     with open(task_manager_csv_path, 'r', encoding='utf-8') as file:
         reader = csv.DictReader(file)
