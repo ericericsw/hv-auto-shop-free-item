@@ -9,6 +9,7 @@ __pycache__/
 config.ini
 sample.py
 *spec
+test.py
 
 # 例外
 !csv/free_shop_order_setting.csv
