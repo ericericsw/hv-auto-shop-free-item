@@ -51,6 +51,7 @@
 3. 雙擊 open_shop.bat
 
 ### windows-python
+0. check & install requirements.txt 的套件
 1. 雙擊 open_shop_windows_python.bat
 
 ## 如何停止
