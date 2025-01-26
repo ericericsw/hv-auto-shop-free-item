@@ -14,14 +14,17 @@
 
 ## config.ini 設定
 請將 config_sample.ini 改名成 config.ini 進行使用  
-HV_Free_Shop_ID =  <UserName(論壇個人頁，例如:https://forums.e-hentai.org/index.php?showuser=6)>
-HV_Free_Shop_UID =  <cookie:ipb_member_id(在論壇的cookie取得)>
-ipb_pass_hash =  <cookie:ipb_pass_hash(在論壇的cookie取得)>
-ipb_session_id = <cookie:ipb_session_id(在論壇的cookie取得)>
-Check_Forums_URL:檢查的論壇Post，請提供主樓網址，例如:https://forums.e-hentai.org/index.php?showtopic=257252  
-Check_Interval:執行間隔(Sec)。預設180秒  
-Test_Mode:啟用測試模式後，不會發出MM。預設為啟用
-Run_Once_Mode:啟用執行單次模式後，跑一次就會關閉
+
+| 欄位項 | 說明 |
+|----------|----------|
+| HV_Free_Shop_ID | <UserName(論壇個人頁，例如:https://forums.e-hentai.org/index.php?showuser=6)> |
+| HV_Free_Shop_UID | <cookie:ipb_member_id(在論壇的cookie取得)> |
+| ipb_pass_hash | <cookie:ipb_pass_hash(在論壇的cookie取得)> |
+| ipb_session_id | <cookie:ipb_session_id(在論壇的cookie取得)> |
+| Check_Forums_URL | 檢查的論壇Post，請提供主樓網址，例如:https://forums.e-hentai.org/index.php?showtopic=257252  |
+| Check_Interval | 執行間隔(Sec)。預設180秒 |
+| Test_Mode | 啟用測試模式後，不會發出MM。預設為啟用 |
+| Run_Once_Mode | 啟用執行單次模式後，跑一次就會關閉 |
 
 ## free_shop_order.csv 的格式
 範例可參考 csv/free_shop_order_setting.csv  
