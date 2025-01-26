@@ -45,13 +45,13 @@
 安裝 python3.12(含以上)後，在 code/DownloadZIP 或 [這裡](https://github.com/ericericsw/hv-auto-shop-free-item/archive/refs/heads/main.zip) 下載專案
 完成設定 config_sample.ini 的設定後：  
 ### windows-exe
-0. 使用 pip install pyinstaller 安裝 pyinstaller 
+0. 使用 pip install pyinstaller 安裝 pyinstaller
 1. 打包 python code(執行 pyinstaller_batch.bat)
 2. 移動至 dist\forums_shop_main
 3. 雙擊 open_shop.bat
 
 ### windows-python
-0. check & install requirements.txt 的套件
+0. check & install requirements.txt 的套件(在目錄pip install -r requirements.txt)
 1. 雙擊 open_shop_windows_python.bat
 
 ## 如何停止
