@@ -49,6 +49,12 @@ logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                               logging.StreamHandler()])
 
 
+class CookieDict(TypedDict):
+    ipb_member_id: str
+    ipb_pass_hash: str
+    ipb_session_id: str
+
+
 class ItemDict(TypedDict):
     item_name: str
     item_number: int
@@ -108,7 +114,7 @@ item_dict = load_item_dict(item_list_csv_path)
 reversed_dict = {v: k for k, v in item_dict.items()}
 
 
-def get_cookie() -> Dict[str, str]:
+def get_cookie() -> CookieDict:
 
     cookies = {}
     ipb_member_uid_value = config.get('Account', 'HV_Free_Shop_UID')

@@ -74,6 +74,7 @@
 * RTS 紀錄器
 * send MM 資訊紀錄器(MM ID)
 * 自動讀取UserID(透過論壇個人頁)
+* read 的 C 與 hath顯示
 * ~~戰鬥狀態檢測~~
 * ~~item 數量 check~~
 * ~~mmlib 的 Hatch 與 C 附件功能~~

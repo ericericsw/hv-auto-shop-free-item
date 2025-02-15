@@ -41,7 +41,13 @@ logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
                               logging.StreamHandler()])
 
 
-def get_cookie() -> Dict[str, str]:
+class CookieDict(TypedDict):
+    ipb_member_id: str
+    ipb_pass_hash: str
+    ipb_session_id: str
+
+
+def get_cookie() -> CookieDict:
 
     cookies = {}
     ipb_member_uid_value = config.get('Account', 'HV_Free_Shop_UID')
