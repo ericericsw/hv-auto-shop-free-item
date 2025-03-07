@@ -193,10 +193,13 @@ def get_post_id(url: str, post_number: int) -> str:
         print(f"{post_number} Not an integer greater than 0")
 
 
-def get_md5check(url) -> str:
+def get_md5check(threrd_url: str) -> str:
+    """
+    取得threrd的md5check值
+    """
 
     # Send a GET request to the URL
-    response = requests.get(url, cookies=get_cookie())
+    response = requests.get(threrd_url, cookies=get_cookie())
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -226,6 +229,59 @@ def get_md5check(url) -> str:
         print(f"Failed to fetch the URL. Status code: {response.status_code}")
 
 
+def check_post_lenght(threrd_url: str, post_number: int):
+    """
+    檢查當前 Post 長度
+
+    TODO 還要做預測或門檻提醒機制
+    """
+
+    # 發送帶有 Cookie 的請求
+    response = requests.get(str(threrd_url), cookies=get_cookie())
+
+    if response.status_code == 200:
+        # 獲取網頁內容，並手動轉乘 utf-8
+        html_content = response.text.encode('ISO-8859-1').decode('utf-8')
+        # print(response.encoding)
+    else:
+        print(f"Request failed. Status code: {response.status_code}")
+
+    # 確認請求成功
+    if response.status_code == 200:
+        # 解析 HTML 內容
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # 使用 id 抓取目標元素
+        element = soup.find(
+            id="post-{}".format(get_post_id(str(threrd_url), int(post_number))))
+
+        print('===========================================================================')
+
+        if element:
+            # 取得目標元素的原始 HTML
+            raw_html = element.prettify()  # 使用 prettify 讓 HTML 更易讀
+
+            # 取得目標元素的純文字內容
+            # text_content = element.get_text(strip=True)
+            # print("\n純文字內容:")
+            # print(text_content)
+
+            # 計算字節大小
+            size_in_bytes = len(raw_html.encode('utf-8'))  # 計算 UTF-8 編碼的字節大小
+            # print(size_in_bytes)
+
+            # 檢查是否超過 65531 bytes
+            if size_in_bytes > 65531:
+                print(f"內容超過上限！大小：{size_in_bytes} bytes、上限為65531")
+            else:
+                print(f"內容大小：{size_in_bytes} bytes，未超過上限、上限為65531。")
+        else:
+            print("無法找到目標元素。")
+
+    else:
+        print(f"無法請求該網址，狀態碼：{response.status_code}")
+
+
 def main():
     # post_test()
     # temp = get_md5check(
@@ -235,8 +291,14 @@ def main():
     #     'https://forums.e-hentai.org/index.php?showtopic=283538', 2)
     # print(post_id)
 
-    test = Forums(get_cookie())
-    test.post_edit('283538', 2, 'testvs')
+    # test = Forums(get_cookie())
+    # test.post_edit('283538', 2, 'testvs')
+
+    for i in range(1, 10):
+
+        check_post_lenght(
+            'https://forums.e-hentai.org/index.php?showtopic=273752', i)
+
     pass
 
 
