@@ -98,13 +98,18 @@ def get_cookie() -> CookieDict:
 class Forums():
     def __init__(self, cookies: CookieDict):
         """
-        初始化
+        Forums相關功能初始化
         """
         self.forums = 'https://forums.e-hentai.org'
         self.cookies = cookies
         self.md5check = get_md5check(self.forums)
 
-    def post_edit(self, thread_id, post_number: int, post_text) -> bool:
+    def post_edit(self, thread_id: int, post_number: int, post_text) -> bool:
+        """
+        修改 post
+        https://forums.e-hentai.org/index.php?showtopic=<thread_id>
+
+        """
         url = self.forums + '/index.php?showtopic=' + str(thread_id)
         post_id = get_post_id(url, post_number)
         url = "https://forums.e-hentai.org/index.php?s=&act=xmlout&do=post-edit-save&p={}&t={}&f=4".format(
@@ -127,11 +132,17 @@ class Forums():
 
         data = {
             "md5check": self.md5check,
-            "Post": post_text
+            "Post": post_text,
+            # "t": thread_id,
+            # "f": 4,  # ! 還不知道這是什麼
+            # "p": post_id,
+            # "act": 'xmlout',  # ! 還不知道這是什麼
+            # "do": 'post-edit-save',
+            # "std_used": '1&',
         }
 
         response = requests.post(url, headers=headers,
-                                 data=data, cookies=get_cookie())
+                                 data=data, cookies=self.cookies)
 
         if response.status_code == 200:
             return True
@@ -282,7 +293,7 @@ def check_post_lenght(threrd_url: str, post_number: int):
         print(f"無法請求該網址，狀態碼：{response.status_code}")
 
 
-def main():
+# def main():
     # post_test()
     # temp = get_md5check(
     #     "https://forums.e-hentai.org/index.php?showtopic=283538")
@@ -292,17 +303,27 @@ def main():
     # print(post_id)
 
     # test = Forums(get_cookie())
-    # test.post_edit('283538', 2, 'testvs')
+    # body = '1'
+    # test.post_edit('284176', 2, body)
 
-    for i in range(1, 10):
+    # for i in range(1, 10):
 
-        check_post_lenght(
-            'https://forums.e-hentai.org/index.php?showtopic=273752', i)
+    #     check_post_lenght(
+    #         'https://forums.e-hentai.org/index.php?showtopic=273752', i)
 
-    pass
+    # check_post_lenght(
+    #     "https://forums.e-hentai.org/index.php?showtopic=284176&st=0&gopid=6648772&#entry6648772", 2)
+
+    # pass
 
 
-if __name__ == "__main__":
-    main()
+"""
+修改字串 170 byte (This post has been edited by ericeric91: Yesterday, 23:59)
+\n 9byte
+數字 1byte
 
-# %0A
+"""
+
+
+# if __name__ == "__main__":
+#     main()

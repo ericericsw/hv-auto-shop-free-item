@@ -326,15 +326,17 @@ class MoogleMail():
                 mm_to = temp_list[0]
                 mm_from = temp_list[1]
                 subject = temp_list[2]
-                print(mm_to)
-                print(mm_from)
-                print(subject)
+                print("mm_to:{}".format(mm_to))
+                print("mm_from:{}".format(mm_from))
+                print("subject:{}".format(subject))
 
                 # 提取 MM body
                 textarea_element = mmail_left.find('textarea')
                 # print(textarea_element.get_text())
                 bodytext = textarea_element.get_text()
+                print('=============↓↓↓↓↓===body==↓↓↓↓↓=================')
                 print(bodytext)
+                print('=============↑↑↑↑↑===body==↑↑↑↑↑=================')
 
                 # 提取 MM 右半邊資料
                 mmail_right = soup.find('div', id="mmail_right")
@@ -468,6 +470,74 @@ class MoogleMail():
                 response.status_code))
             return False
 
+    def take_mm(self, mm_url: str) -> bool:
+        """
+        輸入 mm_url 來收下 MM
+
+        TODO take 紀錄要做
+
+        """
+
+        response = requests.get(mm_url, cookies=self.cookies)
+
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                # 使用正則表達式提取 mmtoken
+                self.mmtoken = re.search(
+                    r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
+                logging.info('get mm_token:{}'.format(self.mmtoken))
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('take mm fail. code:{}'.format(
+                response.status_code))
+            return False
+
+        headers = {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6,zh-CN;q=0.5",
+            "cache-control": "no-cache",
+            "content-type": "application/x-www-form-urlencoded",
+            "pragma": "no-cache",
+            "priority": "u=0, i",
+            "sec-ch-ua": "\"Not(A:Brand\";v=\"99\", \"Google Chrome\";v=\"133\", \"Chromium\";v=\"133\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"Windows\"",
+            "sec-fetch-dest": "document",
+            "sec-fetch-mode": "navigate",
+            "sec-fetch-site": "same-origin",
+            "sec-fetch-user": "?1",
+            "upgrade-insecure-requests": "1"
+        }
+
+        data = {
+            "mmtoken": self.mmtoken,
+            "action": 'attach_remove',
+            "action_value": 0,
+        }
+
+        response = requests.post(mm_url, headers=headers,
+                                 data=data, cookies=self.cookies)
+
+        if response.status_code == 200:
+            if check_battle_status(response):
+                logging.warning('Take MM:{} Success'.format(mm_url))
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('take mm fail. code:{}'.format(
+                response.status_code))
+            return False
+
+    def return_mm(self, mm_url: str) -> bool:
+        """
+        輸入 mm_url 退回 MM
+        """
+
     def write_new(self) -> bool:
         """
         新MM撰寫初始化，獲取mmtoken
@@ -507,7 +577,7 @@ class MoogleMail():
 
         if response.status_code == 200:
             if check_battle_status(response):
-                logging.info(
+                logging.warning(
                     'attach_add_item {}*{} success'.format(item_number, reversed_dict[item_id]))
                 return True
             else:
@@ -535,7 +605,7 @@ class MoogleMail():
             self.mm_write_url, data=payload, cookies=self.cookies)
         if response.status_code == 200:
             if check_battle_status(response):
-                logging.info(
+                logging.warning(
                     'attach_add_credits {}*credits success'.format(credits_number))
                 return True
             else:
@@ -562,14 +632,14 @@ class MoogleMail():
             self.mm_write_url, data=payload, cookies=self.cookies)
         if response.status_code == 200:
             if check_battle_status(response):
-                logging.info(
+                logging.warning(
                     'attach_add_hath {}*hath success'.format(hath_number))
                 return True
             else:
                 logging.error('The account is in battle')
                 return False
         else:
-            logging.warning(
+            logging.error(
                 'attach_add_hath fail. code:'.format(response.status_code))
             return False
 
@@ -594,13 +664,13 @@ class MoogleMail():
                 self.mm_write_url, data=payload, cookies=self.cookies)
             if response.status_code == 200:
                 if check_battle_status(response):
-                    logging.info('sent to {} success'.format(rcpt))
+                    logging.warning('sent to {} success'.format(rcpt))
                     return True
                 else:
                     logging.error('The account is in battle')
                     return False
             else:
-                logging.warning(
+                logging.error(
                     'send fail. code:{}'.format(response.status_code))
                 return False
 
@@ -629,7 +699,7 @@ class MoogleMail():
                 logging.error('The account is in battle')
                 return False
         else:
-            logging.warning(
+            logging.error(
                 'discard fail. code:{}'.format(response.status_code))
             return False
 
@@ -825,8 +895,3 @@ class TaskManager:
             if task.task_id == task_id:
                 return task
         return None
-
-
-# ! 跳行方法仍不知道
-# 跳行是'%0D%0A'
-# 應該只有%0A
