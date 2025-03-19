@@ -14,6 +14,7 @@ from lxml import etree
 import time
 import hv_equiplib
 import inspect
+import enum
 
 
 if getattr(sys, 'frozen', False):
@@ -54,6 +55,12 @@ class CookieDict(TypedDict):
     ipb_member_id: str
     ipb_pass_hash: str
     ipb_session_id: str
+
+
+class CookieKeys(enum.Enum):
+    IPB_MEMBER_ID = 'ipb_member_id'
+    IPB_PASS_HASH = 'ipb_pass_hash'
+    IPB_SESSION_ID = 'ipb_session_id'
 
 
 class ItemDict(TypedDict):
@@ -107,6 +114,21 @@ class MM_Read_Send_Attach_List_Data(TypedDict):
     attached_item10: str
 
 
+class Read_Or_Send(enum.Enum):
+    READ: str = 'read'
+    SEND: str = 'send'
+
+
+class MM_Or_List(enum.Enum):
+    MM: str = 'mm'
+    LIST: str = 'list'
+
+
+class Lock_Or_Unlock(enum.Enum):
+    LOCK: int = 1
+    UNLOCK: int = 0
+
+
 class TaskItem:
     def __init__(self, task_id: int, user_id: str, subject: str, body_text: str, data: List[ItemDict], status: str = 'Pending'):
         self.task_id: int = task_id
@@ -153,12 +175,19 @@ def get_cookie() -> CookieDict:
     ipb_session_id_value = config.get('Account', 'ipb_session_id')
 
     cookies = {
-        'ipb_member_id': ipb_member_uid_value,
-        'ipb_pass_hash': ipb_pass_hash_value,
-        'ipb_session_id': ipb_session_id_value
+        CookieKeys.IPB_MEMBER_ID.value: ipb_member_uid_value,
+        CookieKeys.IPB_PASS_HASH.value: ipb_pass_hash_value,
+        CookieKeys.IPB_SESSION_ID.value: ipb_session_id_value
     }
 
     return cookies
+
+
+# TODO 道具數量與清單取得
+def get_item_inventory():
+    url = 'https://hentaiverse.org/?s=Character&ss=it'
+    response = requests.get(url, cookies=get_cookie())
+    print(response.text)
 
 
 def check_battle_status(response):
@@ -217,7 +246,7 @@ def get_mm_send_time(mm_id: int) -> str:
     return sent_time
 
 
-def get_mm_read_send_max_id(read_or_send: str, mm_or_list: str) -> int:
+def get_mm_read_send_max_id(read_or_send: Read_Or_Send, mm_or_list: MM_Or_List) -> int:
     """
     從 mm_read.csv、mm_send.csv、mm_read_list.csv、mm_send_list.csv 得取當前最大 id 值
 
@@ -226,19 +255,19 @@ def get_mm_read_send_max_id(read_or_send: str, mm_or_list: str) -> int:
         mm_or_list:mm or list
 
     """
-    if read_or_send == 'read':
-        if mm_or_list == 'list':
+    if read_or_send == Read_Or_Send.READ:
+        if mm_or_list == MM_Or_List.LIST:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_read_attach_list.csv')
-        elif mm_or_list == 'mm':
+        elif mm_or_list == MM_Or_List.MM:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_read.csv')
 
-    elif read_or_send == 'send':
-        if mm_or_list == 'list':
+    elif read_or_send == Read_Or_Send.SEND:
+        if mm_or_list == MM_Or_List.LIST:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_send_attach_list.csv')
-        elif mm_or_list == 'mm':
+        elif mm_or_list == MM_Or_List.MM:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_send.csv')
 
@@ -247,9 +276,9 @@ def get_mm_read_send_max_id(read_or_send: str, mm_or_list: str) -> int:
         with open(mm_file_path, mode='r') as file:
             reader = csv.DictReader(file)
             for row in reader:
-                if mm_or_list == 'list':
+                if mm_or_list == MM_Or_List.LIST:
                     current_id = int(row['id'])
-                elif mm_or_list == 'mm':
+                elif mm_or_list == MM_Or_List.MM:
                     current_id = int(row['mm_No'])
                 if max_id is None or current_id > max_id:
                     max_id = current_id
@@ -259,19 +288,15 @@ def get_mm_read_send_max_id(read_or_send: str, mm_or_list: str) -> int:
             read_or_send, mm_or_list))
 
 
-def del_inbox_mm_info():
-    pass
-
-
-def add_read_send_mm_body(body_id: int, read_or_send: str, body_text: str) -> bool:
+def add_read_send_mm_body(body_id: int, read_or_send: Read_Or_Send, body_text: str) -> bool:
     """
     寫入 body 資訊
 
     """
-    if read_or_send == 'read':
+    if read_or_send == Read_Or_Send.READ:
         mm_body_file_path = os.path.join(
             csv_folder_path, 'body', 'read', '{}.txt'.format(body_id))
-    elif read_or_send == 'send':
+    elif read_or_send == Read_Or_Send.SEND:
         mm_body_file_path = os.path.join(
             csv_folder_path, 'body', 'send', '{}.txt'.format(body_id))
     else:
@@ -289,7 +314,7 @@ def add_read_send_mm_body(body_id: int, read_or_send: str, body_text: str) -> bo
         return False
 
 
-def add_read_send_mm_attach_list(read_or_send: str, mm_read_send_attach_list_data: List[MM_Read_Send_Attach_List_Data]) -> bool:
+def add_read_send_mm_attach_list(read_or_send: Read_Or_Send, mm_read_send_attach_list_data: List[MM_Read_Send_Attach_List_Data]) -> bool:
     """
     追加 read、send 資訊
 
@@ -298,9 +323,9 @@ def add_read_send_mm_attach_list(read_or_send: str, mm_read_send_attach_list_dat
         mm_read_send_attach_list_data:read與send格式共用
     """
 
-    if read_or_send == 'read':
+    if read_or_send == Read_Or_Send.READ:
         mm_file_path = os.path.join(csv_folder_path, 'mm_read_attach_list.csv')
-    elif read_or_send == 'send':
+    elif read_or_send == Read_Or_Send.SEND:
         mm_file_path = os.path.join(csv_folder_path, 'mm_send_attach_list.csv')
     else:
         logging.critical('read_or_send input error')
@@ -328,7 +353,7 @@ def add_read_send_mm_attach_list(read_or_send: str, mm_read_send_attach_list_dat
     return True
 
 
-def add_read_send_mm_info(read_or_send: str, mm_read_send_data: List[MM_Read_Send_Data]) -> bool:
+def add_read_send_mm_info(read_or_send: Read_Or_Send, mm_read_send_data: List[MM_Read_Send_Data]) -> bool:
     """
     追加 read、send 資訊
 
@@ -337,9 +362,9 @@ def add_read_send_mm_info(read_or_send: str, mm_read_send_data: List[MM_Read_Sen
         mm_read_send_data:read與send格式共用
     """
 
-    if read_or_send == 'read':
+    if read_or_send == Read_Or_Send.READ:
         mm_file_path = os.path.join(csv_folder_path, 'mm_read.csv')
-    elif read_or_send == 'send':
+    elif read_or_send == Read_Or_Send.SEND:
         mm_file_path = os.path.join(csv_folder_path, 'mm_send.csv')
     else:
         logging.critical('read_or_send input error')
@@ -417,7 +442,11 @@ def add_inbox_mm_info(mm_inbox_data: List[MM_Inbox_Data]):
 
 def check_after_post(response: requests, frame_name: str, mm_id: int = None) -> bool:
 
-    mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+    # mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+    if mm_id is not None:
+        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+    else:
+        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox'
 
     if response.status_code == 200:
         if check_battle_status(response):
@@ -464,6 +493,8 @@ class MoogleMail():
         self.mm_inbox_url = self.mm_url + '&filter=inbox'
         self.cookies = cookies
         self.mmtoken = None
+        self.simple_token = None
+        self.user_uid = config.get('Account', 'HV_Free_Shop_UID')
 
     def check_status(self) -> bool:
         """
@@ -497,6 +528,7 @@ class MoogleMail():
         """
         # 進行 GET 請求並附加 cookie
         response = requests.get(self.mm_inbox_url, cookies=self.cookies)
+
         if response.status_code == 200:
             # 檢查是否在戰鬥狀態
             if check_battle_status(response):
@@ -559,11 +591,13 @@ class MoogleMail():
         輸入 mm_id 來讀取內容資料
 
         TODO 還沒做回傳與整理，裝備部分可以跟 hv_equiplib 串
+        TODO 空白信件與attach關係處理
         """
         cod_switch: bool = False
         cod_value: int = 0
 
-        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + \
+            str(mm_id)
         equip_dict = {}
 
         response = requests.get(mm_url, cookies=self.cookies)
@@ -704,7 +738,8 @@ class MoogleMail():
 
         """
 
-        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + \
+            str(mm_id)
 
         response = requests.get(mm_url, cookies=self.cookies)
 
@@ -733,28 +768,17 @@ class MoogleMail():
 
         return check_after_post(response,  inspect.currentframe().f_code.co_name, mm_url)
 
-    def return_mm(self, mm_id: str) -> bool:
+    def return_or_recall_mm(self, mm_id: str) -> bool:
         """
-        輸入 mm_id 退回 MM
+        輸入 mm_id 做 return 或 recall
+        PS:實際上共用
+
+        TODO 執行前要先做內容存檔
         """
-        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + \
+            str(mm_id)
 
-        response = requests.get(mm_url, cookies=self.cookies)
-
-        if response.status_code == 200:
-            # 檢查是否在戰鬥狀態
-            if check_battle_status(response):
-                # 使用正則表達式提取 mmtoken
-                self.mmtoken = re.search(
-                    r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
-                logging.info('get mm_token:{}'.format(self.mmtoken))
-            else:
-                logging.error('The account is in battle')
-                return False
-        else:
-            logging.error('Return MM fail. code:{}'.format(
-                response.status_code))
-            return False
+        MoogleMail.get_mm_token(self)
 
         payload = {
             "mmtoken": self.mmtoken,
@@ -766,11 +790,74 @@ class MoogleMail():
 
         return check_after_post(response, inspect.currentframe().f_code.co_name, mm_url)
 
-    def write_new(self) -> bool:
+# TODO
+    def del_inbox_mm_info():
+        pass
+
+    def check_send_mm():
+        pass
+
+# TODO
+
+    def equip_lock_or_unlock(self, lock_or_unlock: Lock_Or_Unlock, equip_id: int):
         """
-        新MM撰寫初始化，獲取mmtoken
+        解除或鎖定裝備狀態
         """
-        # 進行 GET 請求並附加 cookie
+        url = "https://hentaiverse.org/json"
+
+        MoogleMail.get_simple_token(self)
+
+        data = {
+            "type": "simple",
+            "method": "lockequip",
+            "uid": self.user_uid,
+            "token": self.simple_token,
+            "eid": equip_id,
+            "lock": lock_or_unlock.value
+        }
+
+        response = requests.post(url, cookies=self.cookies, json=data)
+
+        if check_after_post(response, inspect.currentframe().f_code.co_name):
+            # 檢查 response.text 是否包含特定的 JSON 回應
+            expected_response = '{{"eid":{},"locked":{}}}'.format(
+                equip_id, lock_or_unlock.value)
+            if lock_or_unlock == Lock_Or_Unlock.LOCK:
+                lock_or_unlock_string = 'lock'
+            elif lock_or_unlock == Lock_Or_Unlock.UNLOCK:
+                lock_or_unlock_string = 'unlock'
+
+            if response.text == expected_response:
+                logging.info('equip_lock_or_unlock succeed:{} {}'.format(
+                    lock_or_unlock_string, equip_id))
+            else:
+                logging.warning('equip_lock_or_unlock fail:{} {}'.format(
+                    lock_or_unlock_string, equip_id))
+
+            return True
+
+        else:
+            return False
+
+    def get_simple_token(self) -> bool:
+        response = requests.get(self.mm_write_url, cookies=self.cookies)
+        if response.status_code == 200:
+            # 檢查是否在戰鬥狀態
+            if check_battle_status(response):
+                # 使用正則表達式提取 mmtoken
+                self.simple_token = re.search(
+                    r'var simple_token = "([^"]+)";', response.text).group(1)
+                logging.info('get simple_token:{}'.format(self.simple_token))
+                return True
+            else:
+                logging.error('The account is in battle')
+                return False
+        else:
+            logging.error('get_simple_token fail code:{}'.format(
+                response.status_code))
+            return False
+
+    def get_mm_token(self) -> bool:
         response = requests.get(self.mm_write_url, cookies=self.cookies)
         if response.status_code == 200:
             # 檢查是否在戰鬥狀態
@@ -784,9 +871,42 @@ class MoogleMail():
                 logging.error('The account is in battle')
                 return False
         else:
-            logging.error('write_new fail. code:{}'.format(
+            logging.error('get_mm_token fail code:{}'.format(
                 response.status_code))
             return False
+
+    def write_new(self) -> bool:
+        """
+        新MM撰寫初始化，獲取mmtoken
+        """
+        # 先丟掉原本的信件內容
+        if not MoogleMail.discard(self):
+            logging.error('write_new fail')
+            return False
+        # 取得 token
+        elif not MoogleMail.get_mm_token(self):
+            logging.error('write_new fail')
+            return False
+        else:
+            return True
+
+        # # 進行 GET 請求並附加 cookie
+        # response = requests.get(self.mm_write_url, cookies=self.cookies)
+        # if response.status_code == 200:
+        #     # 檢查是否在戰鬥狀態
+        #     if check_battle_status(response):
+        #         # 使用正則表達式提取 mmtoken
+        #         self.mmtoken = re.search(
+        #             r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
+        #         logging.info('get mm_token:{}'.format(self.mmtoken))
+        #         return True
+        #     else:
+        #         logging.error('The account is in battle')
+        #         return False
+        # else:
+        #     logging.error('write_new fail. code:{}'.format(
+        #         response.status_code))
+        #     return False
 
     def set_cod(self, CoD_value: int) -> bool:
         payload = {

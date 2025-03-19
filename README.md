@@ -58,7 +58,6 @@
 1. 關閉cmd或是使用ctrl+c進行終止
 
 # 待開發
-* 論壇 post edit
 * MM check
 * 寫入版本號
 * 要做單次與多次執行開關
@@ -75,7 +74,10 @@
 * send MM 資訊紀錄器(MM ID)
 * 自動讀取UserID(透過論壇個人頁)
 * read 的 C 與 hath顯示
+* ~~論壇 post edit~~
+* ~~裝備鎖定與解除鎖定~~
 * ~~戰鬥狀態檢測~~
 * ~~item 數量 check~~
 * ~~mmlib 的 Hatch 與 C 附件功能~~
 * ~~ticket部分需要追加分段處理與完成寄送標記，不然會不知道中斷在哪一個節點~~
+* ~~recall&retrun mm~~
