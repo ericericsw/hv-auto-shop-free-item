@@ -107,28 +107,13 @@ class Forums():
     def post_edit(self, thread_id: int, post_number: int, post_text) -> bool:
         """
         修改 post
-        https://forums.e-hentai.org/index.php?showtopic=<thread_id>
+        https://forums.e-hentai.org/index.php?showtopic={thread_id}
 
         """
         url = self.forums + '/index.php?showtopic=' + str(thread_id)
         post_id = get_post_id(url, post_number)
         url = "https://forums.e-hentai.org/index.php?s=&act=xmlout&do=post-edit-save&p={}&t={}&f=4".format(
             post_id, thread_id)
-
-        headers = {
-            "accept": "*/*",
-            "accept-language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6,zh-CN;q=0.5",
-            "cache-control": "no-cache",
-            "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "pragma": "no-cache",
-            "priority": "u=1, i",
-            "sec-ch-ua": "\"Not(A:Brand\";v=\"99\", \"Google Chrome\";v=\"133\", \"Chromium\";v=\"133\"",
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": "\"Windows\"",
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin"
-        }
 
         data = {
             "md5check": self.md5check,
@@ -141,8 +126,7 @@ class Forums():
             # "std_used": '1&',
         }
 
-        response = requests.post(url, headers=headers,
-                                 data=data, cookies=self.cookies)
+        response = requests.post(url, data=data, cookies=self.cookies)
 
         if response.status_code == 200:
             return True
