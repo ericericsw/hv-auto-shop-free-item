@@ -129,6 +129,21 @@ class Lock_Or_Unlock(enum.Enum):
     UNLOCK: int = 0
 
 
+def load_item_dict(csv_file_path):
+    item_dict = {}
+    with open(csv_file_path, mode='r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            item_dict[row['item_name']] = int(row['item_id'])
+    return item_dict
+
+
+item_list_csv_path = os.path.join(csv_folder_path, 'item_list.csv')
+item_dict = load_item_dict(item_list_csv_path)
+# 反轉字典
+reversed_dict = {v: k for k, v in item_dict.items()}
+
+
 class TaskItem:
     def __init__(self, task_id: int, user_id: str, subject: str, body_text: str, data: List[ItemDict], status: str = 'Pending'):
         self.task_id: int = task_id
@@ -152,21 +167,6 @@ class TaskItem:
         self.status: str = 'Finish'
 
 
-def load_item_dict(csv_file_path):
-    item_dict = {}
-    with open(csv_file_path, mode='r', encoding='utf-8') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            item_dict[row['item_name']] = int(row['item_id'])
-    return item_dict
-
-
-item_list_csv_path = os.path.join(csv_folder_path, 'item_list.csv')
-item_dict = load_item_dict(item_list_csv_path)
-# 反轉字典
-reversed_dict = {v: k for k, v in item_dict.items()}
-
-
 def get_cookie() -> CookieDict:
 
     cookies = {}
@@ -183,11 +183,47 @@ def get_cookie() -> CookieDict:
     return cookies
 
 
-# TODO 道具數量與清單取得
-def get_item_inventory():
+def get_item_inventory() -> List:
+    """
+    取得當前道具清單與數量
+    """
+
     url = 'https://hentaiverse.org/?s=Character&ss=it'
     response = requests.get(url, cookies=get_cookie())
-    print(response.text)
+
+    if check_battle_status(response):
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+
+            # 找到特定的table
+            item_table = soup.find('table', class_='nosel itemlist')
+
+            if item_table:
+                # 擷取並處理表格內容
+                items_text = item_table.text
+
+                # 使用正則表達式擷取項目名稱和數字
+                item_list = {}
+                matches = re.findall(r'([A-Za-z\s\-]+)(\d+)', items_text)
+                for match in matches:
+                    item_name = match[0].strip().lower()  # 統一使用小寫 item name
+                    item_count = int(match[1])
+                    item_list[item_name] = item_count
+
+                return item_list
+
+            else:
+                logging.critical('can not found item table')
+                return False
+
+        else:
+            logging.error('{} Fail. code:get_item_inventory text:{}'.format(
+                response.status_code, response.text))
+            return False
+
+    else:
+        logging.error('The account is in battle')
+        return False
 
 
 def check_battle_status(response):
