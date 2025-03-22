@@ -17,6 +17,7 @@ import sys
 import traceback
 from typing import List, Dict, TypedDict
 from collections import defaultdict
+from dataclasses import dataclass
 # endregion
 
 # 指定時區
@@ -56,6 +57,7 @@ Shop_Test_Mode = config.getboolean('Shop', 'Test_Mode')
 Run_Once_Mode = config.getboolean('Shop', 'Run_Once_Mode')
 
 
+@dataclass
 class Ticket_Info(Dict):
     order_suit: str
     post_number: int
@@ -65,6 +67,7 @@ class Ticket_Info(Dict):
     Ticket_No: int
 
 
+@dataclass
 class Warning_Log(Dict):
     post_number: int
     Post_ID: int
@@ -208,13 +211,18 @@ def warning_log_processing(warning_log: List[Warning_Log]):
         logging.info('warning_log:{}'.format(warning_log))
         logging.warning('Have New Tick')
         for warning_log_data in warning_log:
-            post_number = warning_log_data['post_number']
-            Post_ID = warning_log_data['Post_ID']
-            User_ID = warning_log_data['User_ID']
-            User_UID = warning_log_data['User_UID']
-            Input_Error_Type = warning_log_data['Input_Error_Type']
+            # post_number = warning_log_data['post_number']
+            # Post_ID = warning_log_data['Post_ID']
+            # User_ID = warning_log_data['User_ID']
+            # User_UID = warning_log_data['User_UID']
+            # Input_Error_Type = warning_log_data['Input_Error_Type']
+            post_number = warning_log_data.post_number
+            Post_ID = warning_log_data.Post_ID
+            User_ID = warning_log_data.User_ID
+            User_UID = warning_log_data.User_UID
+            Input_Error_Type = warning_log_data.Input_Error_Type
             csv_tools.Add_Error_Ticket_Log(
-                post_number, Post_ID, User_ID, Input_Error_Type)
+                post_number, Post_ID, User_ID, User_UID, Input_Error_Type)
 
             # TODO 還沒做靠 request 做 post edit 的功能
 
@@ -236,12 +244,18 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
 
         # 進行task建立
         for ticket_info_data in ticket_info:
-            order_suit = ticket_info_data['order_suit']
-            post_number = ticket_info_data['post_number']
-            user_id = ticket_info_data['User_ID']
-            user_uid = ticket_info_data['User_UID']
-            user_level = ticket_info_data['User_Level']
-            ticket_no = ticket_info_data['Ticket_No']
+            order_suit = ticket_info_data.order_suit
+            post_number = ticket_info_data.post_number
+            user_id = ticket_info_data.User_ID
+            user_uid = ticket_info_data.User_UID
+            user_level = ticket_info_data.User_Level
+            ticket_no = ticket_info_data.Ticket_No
+            # order_suit = ticket_info_data['order_suit']
+            # post_number = ticket_info_data['post_number']
+            # user_id = ticket_info_data['User_ID']
+            # user_uid = ticket_info_data['User_UID']
+            # user_level = ticket_info_data['User_Level']
+            # ticket_no = ticket_info_data['Ticket_No']
 
             subject_text = "{}'s Free Shop Ticket {}".format(
                 HV_Free_Shop_ID, ticket_no)

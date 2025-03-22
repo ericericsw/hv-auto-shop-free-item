@@ -580,7 +580,7 @@ def Add_Error_Return_Log(Ticker_No, Ticket_Owner, Input_Error_Type, Time=None):
 
 
 # 用於記錄錯誤的 Ticket
-def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=None):
+def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, User_UID, Input_Error_Type, Time=None):
     '''
     type list:
         Unrecognized-Format-Part-Not-1:回應是多段的字詞
@@ -605,7 +605,7 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=N
         Time = get_isoformat()
 
     log_entry = [Time, Post_Number, Post_ID,
-                 User_ID, Input_Error_Type]
+                 User_ID, User_UID, Input_Error_Type]
 
     # Write_Raw_Log('Add_Error_Ticket_Log', 'write', log_entry)
     logging.warning('Add_Error_Ticket_Log Post_Number:{}'.format(Post_Number))
@@ -617,7 +617,7 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=N
         # 如果檔案是空的，就寫入欄位名稱
         if csv_file.tell() == 0:
             writer.writerow(
-                ["Time", "Post_Number", "Post_ID", "User_ID", "Input_Error_Type"])
+                ["Time", "Post_Number", "Post_ID", "User_ID", "User_UID" "Input_Error_Type"])
 
         writer.writerow(log_entry)
 
