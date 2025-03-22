@@ -19,6 +19,7 @@ from typing import List, Dict, TypedDict
 from collections import defaultdict
 from dataclasses import dataclass
 from forums_lib import Forums_Code
+import hv_mmlib
 # endregion
 
 # 指定時區
@@ -273,6 +274,42 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
         logging.info('No New Tick')
 
 
+def check_item_thresholds(current_thresholds: Dict[str, int], now_holding_item: Dict[str, int]) -> bool:
+    for item, count in current_thresholds.items():
+        if item in now_holding_item and int(count) < int(now_holding_item[item]):
+            logging.error(
+                f'item {item} count is {now_holding_item[item]}, is less then thresholds {count}')
+            return False
+    return True
+
+
+def get_item_threshold() -> Dict[str, int]:
+    item_retention_threshold_file_path = os.path.join(
+        current_directory, 'csv', 'item_retention_threshold.csv')
+
+    try:
+        # 開啟 CSV 檔案
+        with open(item_retention_threshold_file_path, newline='', encoding='utf-8') as csvfile:
+            # 建立 CSV 讀取器
+            csv_reader = csv.DictReader(csvfile)
+
+            item_list = {}
+
+            # 遍歷每一行
+            for row in csv_reader:
+                item_name = row['item_name'].lower()
+                item_count = row['item_count']
+                item_list[item_name] = int(item_count)
+
+        return item_list
+
+    except FileNotFoundError:
+        logging.critical(
+            f"Error: File {item_retention_threshold_file_path} not found.")
+    except Exception as e:
+        logging.critical(f"An error occurred: {e}")
+
+
 def generate_order_info_post_text(shop_order_setting: Dict[str, SuitInfo]):
     bot_order_info_file_path = os.path.join(
         current_directory, 'post_draft', 'bot_order_info.txt')
@@ -330,28 +367,32 @@ def main():
                 # 檢查開始標記
                 check_transaction.Start()
 
-                # 爬取論壇 post 資訊
-                ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
+                item_threshold = get_item_threshold()
+                item_inventory = hv_mmlib.get_item_inventory()
+                if check_item_thresholds(item_threshold, item_inventory):
 
-                if ticket_info:
-                    ticket_info_processing(shop_order_setting, ticket_info)
-                if warning_log:
-                    warning_log_processing(warning_log)
-                if hv_mmlib.check_pending_mm():
-                    hv_mmlib.send_mm_with_item()
+                    # 爬取論壇 post 資訊
+                    ticket_info, warning_log = forums_crawler.Get_Forums_Ticket()
 
-                # 檢查結束標記
-                check_transaction.End()
-                if Run_Once_Mode:
-                    loop_switch = False
-                else:
-                    # 休息180秒
-                    logging.warning('Waiting {}sec'.format(
-                        (Shop_Check_Interval-20)))
-                    time.sleep((Shop_Check_Interval-20))
-                    logging.warning('Will be check in 20sec')
-                    time.sleep(20)
-                    logging.warning('Check Start')
+                    if ticket_info:
+                        ticket_info_processing(shop_order_setting, ticket_info)
+                    if warning_log:
+                        warning_log_processing(warning_log)
+                    if hv_mmlib.check_pending_mm():
+                        hv_mmlib.send_mm_with_item()
+
+                    # 檢查結束標記
+                    check_transaction.End()
+                    if Run_Once_Mode:
+                        loop_switch = False
+                    else:
+                        # 休息180秒
+                        logging.warning('Waiting {}sec'.format(
+                            (Shop_Check_Interval-20)))
+                        time.sleep((Shop_Check_Interval-20))
+                        logging.warning('Will be check in 20sec')
+                        time.sleep(20)
+                        logging.warning('Check Start')
 
             # 上次檢查異常中止，進行 Rollback
             else:

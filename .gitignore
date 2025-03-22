@@ -15,3 +15,4 @@ test.py
 !csv/free_shop_order_setting.csv
 !csv/item_list.csv
 !csv/free_shop_last_post_sample.csv
+!csv/Item_retention_threshold.csv

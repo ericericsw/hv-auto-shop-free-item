@@ -190,7 +190,7 @@ def get_cookie() -> CookieDict:
     return cookies
 
 
-def get_item_inventory() -> List:
+def get_item_inventory() -> Dict[str, int]:
     """
     取得當前道具清單與數量
     """
