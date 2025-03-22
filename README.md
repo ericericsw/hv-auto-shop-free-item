@@ -3,8 +3,9 @@
 
 # 目前功能
 自動爬樓檢查 post 是否符合設定 order 要求，符合要求的會用 MM 發信，錯誤的會記錄在 warning log  
-目前還沒有 MM check 與論壇 Post edit 功能
-啟動後，會自動在 post_draft 生成 order 資訊的語法，可以將語法更新到論壇 Post
+目前還沒有 MM check 功能  
+啟動後，會自動在 post_draft 生成 order 資訊的語法，可以將語法更新到論壇 Post  
+可自定義事件更新的 Post Number，並透過 BOT 自動更新「已經處理到第幾個 Post」，同時會印出錯誤的 Order 資訊  
 
 ## 時間間隔計算
 作為升級獎勵，不同的 item_suit_id 的時間獨立計算  
