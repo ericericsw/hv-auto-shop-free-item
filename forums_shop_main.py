@@ -258,6 +258,38 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
         logging.info('No New Tick')
 
 
+def generate_order_info_post_text(shop_order_setting: Dict[str, SuitInfo]):
+    bot_order_info_file_path = os.path.join(
+        current_directory, 'post_draft', 'bot_order_info.txt')
+    with open(bot_order_info_file_path, 'w') as file:
+        for suit, details in shop_order_setting.items():
+            file.write(f"Suit Name: {suit}")
+            file.write("[list]")
+            file.write("\n")
+
+            file.write("[*]")
+            cool_time = 'Infinity' if details['item_suit_cool_time_day'] == 0 else details['item_suit_cool_time_day']
+            file.write(f"  Re-request interval (Days): {cool_time}\n")
+
+            file.write("[*]")
+            file.write(
+                f"  Order request limit: {details['item_suit_order_limit']}\n")
+
+            file.write("[*]")
+            file.write(
+                f"  Level Limit: {details['item_suit_level_limit_min']} ~ {details['item_suit_level_limit_max']}\n")
+            file.write("  Items:\n")
+
+            file.write("[list=1]")
+            for item in details['item_info']:
+                file.write("[*]")
+                file.write(
+                    f"    {item['item_name']}: {item['item_number']}\n")
+            file.write("[/list]")
+            file.write("[/list]")
+            file.write("\n")
+
+
 def main():
 
     logging.warning('Free Shop is initialization')
@@ -265,6 +297,7 @@ def main():
     shop_setting_csv_path = os.path.join(
         csv_directory, 'free_shop_order_setting.csv')
     shop_order_setting = get_free_shop_order_setting(shop_setting_csv_path)
+    generate_order_info_post_text(shop_order_setting)
 
     check_transaction = csv_tools.Check_Transaction()
 
@@ -330,6 +363,24 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-    print()
+    # main()
+    pass
     # os.system("pause")
+
+    shop_setting_csv_path = os.path.join(
+        csv_directory, 'free_shop_order_setting.csv')
+    shop_order_setting = get_free_shop_order_setting(shop_setting_csv_path)
+    generate_order_info_post_text(shop_order_setting)
+    # print(shop_order_setting)
+
+    # for suit, details in shop_order_setting.items():
+    #     print(f"Suit Name: {suit}")
+    #     cool_time = 'Infinity' if details['item_suit_cool_time_day'] == 0 else details['item_suit_cool_time_day']
+    #     print(f"  Re-request interval (Days): {cool_time}")
+    #     print(f"  Order request limit: {details['item_suit_order_limit']}")
+    #     print(
+    #         f"  Level Limit: {details['item_suit_level_limit_min']} ~ {details['item_suit_level_limit_max']}")
+    #     print("  Items:")
+    #     for item in details['item_info']:
+    #         print(f"    - {item['item_name']}: {item['item_number']}")
+    #     print()

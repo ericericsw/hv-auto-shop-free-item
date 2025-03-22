@@ -167,6 +167,13 @@ class TaskItem:
         self.status: str = 'Finish'
 
 
+def get_isoformat():
+    """
+    無時區、精度為秒
+    """
+    return datetime.datetime.now().isoformat(timespec='seconds')
+
+
 def get_cookie() -> CookieDict:
 
     cookies = {}
@@ -1185,8 +1192,8 @@ class TaskManager:
         """
         with open(self.task_manager_csv_path, 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow([task.task_id, datetime.datetime.now(
-            ).isoformat(), '', 'task_{}.json'.format(task.task_id)])
+            writer.writerow([task.task_id, get_isoformat(), '',
+                            'task_{}.json'.format(task.task_id)])
 
     def save_task_to_json(self, task: TaskItem):
         """
@@ -1205,7 +1212,7 @@ class TaskManager:
             headers = reader.fieldnames
             for row in reader:
                 if int(row['SN']) == task.task_id:
-                    row['end_time'] = datetime.datetime.now().isoformat()
+                    row['end_time'] = get_isoformat()
                 rows.append(row)
 
         with open(self.task_manager_csv_path, 'w', newline='', encoding='utf-8') as file:

@@ -5,7 +5,7 @@ import re
 import csv
 from bs4 import BeautifulSoup
 import time
-from datetime import datetime, timedelta
+import datetime
 import os
 import logging
 import pytz
@@ -104,6 +104,13 @@ def check_folder_path_exists(folder_Path: os.path):
         logging.warning(f"資料夾 '{folder_Path}' 已建立。")
 
 
+def get_isoformat():
+    """
+    無時區、精度為秒
+    """
+    return datetime.datetime.now().isoformat(timespec='seconds')
+
+
 def get_cookie() -> Dict[str, str]:
 
     cookies = {}
@@ -142,7 +149,7 @@ def get_last_post_number() -> int:
     headers = ['Time', 'Last_Post_Number', 'Note']
     if not csv_tools.check_csv_exists(free_shop_last_post_csv_path, headers):
         new_data = {
-            'Time': datetime.now().isoformat(),
+            'Time': get_isoformat(),
             'Last_Post_Number': 5,
             'Note': ''
         }
@@ -193,7 +200,7 @@ def write_last_post_info(last_post_number: int):
         with open(file_path, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers)
             writer.writerow({
-                'Time': datetime.now().isoformat(),
+                'Time': get_isoformat(),
                 'Last_Post_Number': last_post_number,
                 'Note': ''
             })

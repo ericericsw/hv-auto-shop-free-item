@@ -57,6 +57,13 @@ HV_Free_Shop_ID = config.get('Account', 'HV_Free_Shop_ID')
 HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
 
 
+def get_isoformat():
+    """
+    無時區、精度為秒
+    """
+    return datetime.datetime.now().isoformat(timespec='seconds')
+
+
 def check_csv_exists(file_path: os.path, default_headers: list):
     """
     檢查csv是否存在，不存在則寫入填入的預設欄位
@@ -142,7 +149,7 @@ def Add_User_To_Black_List(User_ID, User_UID, Equip_ID, Equip_URL, Equip_Name, R
 
     # 如果未提供時間，則使用當前時間
     if Time is None:
-        Time = datetime.datetime.now().isoformat()
+        Time = get_isoformat()
 
     log_entry = [Time, User_ID, User_UID, Equip_ID,
                  Equip_URL, Equip_Name, Root_Cause]
@@ -182,7 +189,7 @@ class Check_Transaction():
         headers = ['Time', 'Start', 'End']
         check_csv_exists(self.file_path, headers)
 
-        self.current_time = datetime.datetime.now().isoformat()
+        self.current_time = get_isoformat()
 
     def Start(self):
         """
@@ -308,7 +315,7 @@ def Add_MM_Take_Date(Ticket_No):
                              'HV_Equip_Shop_Ticket.csv')
 
     # 取得當前時間
-    current_time = datetime.datetime.now().isoformat()
+    current_time = get_isoformat()
 
     # 檢查檔案是否存在
     if os.path.exists(file_path):
@@ -554,7 +561,7 @@ def Add_Error_Return_Log(Ticker_No, Ticket_Owner, Input_Error_Type, Time=None):
 
     # 如果未提供時間，則使用當前時間
     if Time is None:
-        Time = datetime.datetime.now().isoformat()
+        Time = get_isoformat()
 
     log_entry = [Time, Ticker_No, Ticket_Owner, Input_Error_Type]
 
@@ -595,7 +602,7 @@ def Add_Error_Ticket_Log(Post_Number, Post_ID, User_ID, Input_Error_Type, Time=N
 
     # 如果未提供時間，則使用當前時間
     if Time is None:
-        Time = datetime.datetime.now().isoformat()
+        Time = get_isoformat()
 
     log_entry = [Time, Post_Number, Post_ID,
                  User_ID, Input_Error_Type]
@@ -649,7 +656,7 @@ def Get_Ticket_User_ID_By_Ticket_No(Ticket_No):
 # 紀錄收下 RTS 的 Credit
 def Credits_MM_Receive_Archiving(User_ID, Credits):
     # 取得當前時間，並使用 ISO 格式
-    current_time = datetime.datetime.now().isoformat()
+    current_time = get_isoformat()
 
     # 資料
     data = [current_time, User_ID, Credits]
@@ -714,7 +721,7 @@ def check_user_has_ticket_in_time_list(user_uid: str, time_limit: int, item_suit
     check_csv_exists(csv_file_path, headers)
 
     # 設定時間初始值
-    last_ticket_time = '2000-01-01T00:00:00.00000'
+    last_ticket_time = '2000-01-01T00:00:00'
 
     # 讀取CSV文件並找到最新的Ticket_No
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
@@ -726,7 +733,7 @@ def check_user_has_ticket_in_time_list(user_uid: str, time_limit: int, item_suit
                     last_ticket_time = row['Time']
 
     # 取得當前時間
-    current_time = datetime.datetime.now()
+    current_time = get_isoformat()
     last_ticket_time = datetime.datetime.fromisoformat(last_ticket_time)
 
     if last_ticket_time:
@@ -756,7 +763,7 @@ def add_free_shop_ticket(User_ID: str, User_UID: int, User_Level: int, Item_Suit
     # 將最新的Ticket_No加1
     new_ticket_no = max_ticket_no + 1
     # 取得當前時間
-    current_time = datetime.datetime.now().isoformat()
+    current_time = get_isoformat()
 
     # 要寫入的新資料
     new_data = {
