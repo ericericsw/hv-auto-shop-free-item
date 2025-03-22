@@ -11,6 +11,7 @@ sample.py
 test.py
 post_draft/
 *spec
+test.py
 
 # 例外
 !csv/free_shop_order_setting.csv
