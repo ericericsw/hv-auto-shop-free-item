@@ -28,10 +28,12 @@ def check_folder_path_exists(folder_Path: os.path):
 csv_dir = os.path.join(current_directory, 'csv')
 log_dir = os.path.join(current_directory, 'log')
 json_dir = os.path.join(current_directory, 'json')
+post_draft_dir = os.path.join(current_directory, 'post_draft')
 # 檢查工作目錄是否有資料夾
 check_folder_path_exists(csv_dir)
 check_folder_path_exists(log_dir)
 check_folder_path_exists(json_dir)
+check_folder_path_exists(post_draft_dir)
 
 
 # 如果 config.ini 不存在則將 sample 改名拿來用

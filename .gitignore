@@ -9,6 +9,7 @@ __pycache__/
 config.ini
 sample.py
 test.py
+post_draft/
 *spec
 
 # 例外

@@ -71,7 +71,6 @@ else:
     os._exit()
 
 
-@dataclass
 class Ticket_Info(Dict):
     order_suit: str
     post_number: int
@@ -81,7 +80,6 @@ class Ticket_Info(Dict):
     Ticket_No: int
 
 
-@dataclass
 class Warning_Log(Dict):
     post_number: int
     Post_ID: int
@@ -225,16 +223,12 @@ def warning_log_processing(warning_log: List[Warning_Log]):
         logging.info('warning_log:{}'.format(warning_log))
         logging.warning('Have New Tick')
         for warning_log_data in warning_log:
-            # post_number = warning_log_data['post_number']
-            # Post_ID = warning_log_data['Post_ID']
-            # User_ID = warning_log_data['User_ID']
-            # User_UID = warning_log_data['User_UID']
-            # Input_Error_Type = warning_log_data['Input_Error_Type']
-            post_number = warning_log_data.post_number
-            Post_ID = warning_log_data.Post_ID
-            User_ID = warning_log_data.User_ID
-            User_UID = warning_log_data.User_UID
-            Input_Error_Type = warning_log_data.Input_Error_Type
+            post_number = warning_log_data['post_number']
+            Post_ID = warning_log_data['Post_ID']
+            User_ID = warning_log_data['User_ID']
+            User_UID = warning_log_data['User_UID']
+            Input_Error_Type = warning_log_data['Input_Error_Type']
+
             csv_tools.Add_Error_Ticket_Log(
                 post_number, Post_ID, User_ID, User_UID, Input_Error_Type)
 
@@ -256,18 +250,18 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
 
         # 進行task建立
         for ticket_info_data in ticket_info:
-            order_suit = ticket_info_data.order_suit
-            post_number = ticket_info_data.post_number
-            user_id = ticket_info_data.User_ID
-            user_uid = ticket_info_data.User_UID
-            user_level = ticket_info_data.User_Level
-            ticket_no = ticket_info_data.Ticket_No
-            # order_suit = ticket_info_data['order_suit']
-            # post_number = ticket_info_data['post_number']
-            # user_id = ticket_info_data['User_ID']
-            # user_uid = ticket_info_data['User_UID']
-            # user_level = ticket_info_data['User_Level']
-            # ticket_no = ticket_info_data['Ticket_No']
+            # order_suit = ticket_info_data.order_suit
+            # post_number = ticket_info_data.post_number
+            # user_id = ticket_info_data.User_ID
+            # user_uid = ticket_info_data.User_UID
+            # user_level = ticket_info_data.User_Level
+            # ticket_no = ticket_info_data.Ticket_No
+            order_suit = ticket_info_data['order_suit']
+            post_number = ticket_info_data['post_number']
+            user_id = ticket_info_data['User_ID']
+            user_uid = ticket_info_data['User_UID']
+            user_level = ticket_info_data['User_Level']
+            ticket_no = ticket_info_data['Ticket_No']
 
             subject_text = "{}'s Free Shop Ticket {}".format(
                 HV_Free_Shop_ID, ticket_no)
@@ -286,7 +280,7 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
 
 def check_item_thresholds(current_thresholds: Dict[str, int], now_holding_item: Dict[str, int]) -> bool:
     for item, count in current_thresholds.items():
-        if item in now_holding_item and int(count) < int(now_holding_item[item]):
+        if item in now_holding_item and int(count) > int(now_holding_item[item]):
             logging.error(
                 f'item {item} count is {now_holding_item[item]}, is less then thresholds {count}')
             return False
@@ -452,6 +446,8 @@ def main():
                     if hv_mmlib.check_pending_mm():
                         hv_mmlib.send_mm_with_item()
 
+                    update_event_post()
+
                     # 檢查結束標記
                     check_transaction.End()
                     if Run_Once_Mode:
@@ -491,24 +487,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     pass
-    # os.system("pause")
-
-    shop_setting_csv_path = os.path.join(
-        csv_directory, 'free_shop_order_setting.csv')
-    shop_order_setting = get_free_shop_order_setting(shop_setting_csv_path)
-    generate_order_info_post_text(shop_order_setting)
-    # print(shop_order_setting)
-
-    # for suit, details in shop_order_setting.items():
-    #     print(f"Suit Name: {suit}")
-    #     cool_time = 'Infinity' if details['item_suit_cool_time_day'] == 0 else details['item_suit_cool_time_day']
-    #     print(f"  Re-request interval (Days): {cool_time}")
-    #     print(f"  Order request limit: {details['item_suit_order_limit']}")
-    #     print(
-    #         f"  Level Limit: {details['item_suit_level_limit_min']} ~ {details['item_suit_level_limit_max']}")
-    #     print("  Items:")
-    #     for item in details['item_info']:
-    #         print(f"    - {item['item_name']}: {item['item_number']}")
-    #     print()

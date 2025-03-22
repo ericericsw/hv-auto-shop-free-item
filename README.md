@@ -4,6 +4,7 @@
 # 目前功能
 自動爬樓檢查 post 是否符合設定 order 要求，符合要求的會用 MM 發信，錯誤的會記錄在 warning log  
 目前還沒有 MM check 與論壇 Post edit 功能
+啟動後，會自動在 post_draft 生成 order 資訊的語法，可以將語法更新到論壇 Post
 
 ## 時間間隔計算
 作為升級獎勵，不同的 item_suit_id 的時間獨立計算  
@@ -26,7 +27,7 @@
 | Test_Mode | 啟用測試模式後，不會發出MM。預設為啟用 |
 | Run_Once_Mode | 啟用執行單次模式後，跑一次就會關閉 |
 | Error_Ticket_Show_Count | 顯示錯誤ticket數量。預設為20 |
-| Update_Event_Post_Number | 更新event的post number，預設為 6 | 
+| Update_Event_Post_Number | 更新event的post number，預設為 5 | 
 | Not_Welcome_List_Print | 是否公開不歡迎名單。預設為啟動(True) |
 
 ## free_shop_order.csv 的格式
