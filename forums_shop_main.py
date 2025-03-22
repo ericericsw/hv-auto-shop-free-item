@@ -19,6 +19,7 @@ from typing import List, Dict, TypedDict
 from collections import defaultdict
 from dataclasses import dataclass
 from forums_lib import Forums_Code
+import forums_lib
 import hv_mmlib
 # endregion
 
@@ -57,6 +58,17 @@ HV_Free_Shop_UID = config.get('Account', 'HV_Free_Shop_UID')
 Shop_Check_Interval = config.getint('Shop', 'Check_Interval')
 Shop_Test_Mode = config.getboolean('Shop', 'Test_Mode')
 Run_Once_Mode = config.getboolean('Shop', 'Run_Once_Mode')
+Error_Ticket_Show_Count = config.get('Shop', 'Error_Ticket_Show_Count')
+Check_Forums_URL = config.get('URLs', 'Check_Forums_URL')
+Update_Event_Post_Number = config.get('Shop', 'Update_Event_Post_Number')
+Not_Welcome_List_Print = config.getboolean('Shop', 'Not_Welcome_List_Print')
+
+match = re.search(r'showtopic=(\d+)', Check_Forums_URL)
+if match:
+    Check_Forums_Thread_ID = match.group(1)
+else:
+    logging.critical("No topic ID found in the URL.")
+    os._exit()
 
 
 @dataclass
@@ -226,8 +238,6 @@ def warning_log_processing(warning_log: List[Warning_Log]):
             csv_tools.Add_Error_Ticket_Log(
                 post_number, Post_ID, User_ID, User_UID, Input_Error_Type)
 
-            # TODO 還沒做靠 request 做 post edit 的功能
-
     else:
         logging.info('No Error Tick')
 
@@ -341,6 +351,67 @@ def generate_order_info_post_text(shop_order_setting: Dict[str, SuitInfo]):
             write_order_info(file, details)
             file.write(Forums_Code.ORDERED_LIST_END.value)
             file.write(Forums_Code.NEWLINE.value)
+
+
+def update_event_post():
+
+    update_text = []
+
+    last_post_time, last_post_number = csv_tools.get_last_post_number()
+    Update_Description = 'Updated up to [b][size=5]#' + str(
+        last_post_number) + '[/size][/b] at ' + str(re.sub(r"\.\d+", "", last_post_time)) + ' UTC +0'
+    Warning_Line = '[color=#FF0000][b][size=5][center]Warning Log:[/center][/size][/b][/color]'
+    Not_Welcome_Line = '[color=#FF0000][b][size=5][center]Not welcome list:[/center][/size][/b][/color]'
+
+    update_text = [Update_Description, Warning_Line]
+
+    last_count_error_ticket = csv_tools.get_last_count_error_ticket(
+        Error_Ticket_Show_Count)
+
+    # 轉譯字串(Warning_Line)
+    # Time,Post_Number,Post_ID,User_ID,User_UID,Input_Error_Type
+    for log_entry in last_count_error_ticket:
+        log_string = "[url={}&view=findpost&p={}]#{}[/url] [b]{}[/b] is {} at check time: {} {}".format(
+            Check_Forums_URL,
+            log_entry[2],  # Post_ID
+            log_entry[1],  # Post_Number
+            log_entry[3],  # User_ID
+            log_entry[5],  # Input_Error_Type
+            re.sub(r"\.\d+", "", log_entry[0]),  # Time
+            Forums_Code.NEWLINE.value
+        )
+
+        update_text.append(log_string)
+
+    update_text.append(Not_Welcome_Line)
+
+    if Not_Welcome_List_Print:
+        for User_Object in csv_tools.Get_User_From_Black_List():
+            User_ID, User_UID = User_Object
+
+            User_Text = '[url=https://forums.e-hentai.org/index.php?showuser={}]{}[/url] was listed by:'.format(
+                User_UID, User_ID)
+            update_text.append(User_Text)
+            update_text.append(Forums_Code.UNORDERED_LIST_START.value)
+
+            events = csv_tools.Get_Black_List_Reason_From_User_UID(User_UID)
+
+            for event in events:
+                event_text = '[*] {} @ {} {}'.format(
+                    event['Root_Cause'],
+                    event['Time'],
+                    Forums_Code.NEWLINE.value
+                )
+                update_text.append(event_text)
+
+            update_text.append(Forums_Code.UNORDERED_LIST_END.value)
+
+    forum = forums_lib.Forums(hv_mmlib.get_cookie())
+
+    result = ' '.join(update_text)
+
+    forum.post_edit(Check_Forums_Thread_ID,
+                    int(Update_Event_Post_Number), result)
 
 
 def main():

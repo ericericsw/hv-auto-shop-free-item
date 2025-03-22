@@ -8,7 +8,7 @@ import time
 import datetime
 import os
 import logging
-import pytz
+# import pytz
 import csv_tools
 import forums_shop_main
 import configparser
@@ -32,8 +32,8 @@ Check_Forums_URL = config.get('URLs', 'Check_Forums_URL')
 # Max_Rental_Day = 7
 
 
-# 指定時區
-timezone = pytz.timezone('Asia/Taipei')
+# # 指定時區
+# timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
 if getattr(sys, 'frozen', False):

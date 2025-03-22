@@ -25,6 +25,9 @@
 | Check_Interval | 執行間隔(Sec)。預設180秒 |
 | Test_Mode | 啟用測試模式後，不會發出MM。預設為啟用 |
 | Run_Once_Mode | 啟用執行單次模式後，跑一次就會關閉 |
+| Error_Ticket_Show_Count | 顯示錯誤ticket數量。預設為20 |
+| Update_Event_Post_Number | 更新event的post number，預設為 6 | 
+| Not_Welcome_List_Print | 是否公開不歡迎名單。預設為啟動(True) |
 
 ## free_shop_order.csv 的格式
 範例可參考 csv/free_shop_order_setting.csv  
@@ -60,20 +63,20 @@
 # 待開發
 * MM check
 * 寫入版本號
-* 要做單次與多次執行開關
-* mmlib 的裝備發送
 * 錯誤/不存在的收件者的MM錯誤排除
 * item/hath/C發送辨識
 * 已發送信件的追蹤與收回功能
-* 既有item資訊
 * 既有裝備資訊
 * 既有 hath 資訊
 * 既有 C 資訊
-* Recall 功能
 * RTS 紀錄器
 * send MM 資訊紀錄器(MM ID)
 * 自動讀取UserID(透過論壇個人頁)
 * read 的 C 與 hath顯示
+* ~~既有item資訊~~
+* ~~Recall 功能~~
+* ~~mmlib 的裝備發送~~
+* ~~要做單次與多次執行開關~~
 * ~~論壇 post edit~~
 * ~~裝備鎖定與解除鎖定~~
 * ~~戰鬥狀態檢測~~

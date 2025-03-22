@@ -5,14 +5,25 @@ import re
 import datetime
 import configparser
 import shutil
-import pytz
+# import pytz
 import logging
 import sys
+from typing import List, Dict, TypedDict, Tuple
+
 # endregion
 
 
-# 指定時區
-timezone = pytz.timezone('Asia/Taipei')
+class Error_Ticket_Log(TypedDict):
+    Time: datetime.datetime
+    Post_Number: int
+    Post_ID: int
+    User_ID: str
+    User_UID: int
+    Input_Error_Type: str
+
+
+# # 指定時區
+# timezone = pytz.timezone('Asia/Taipei')
 
 # 取得當前目錄
 if getattr(sys, 'frozen', False):
@@ -85,6 +96,69 @@ def check_csv_exists(file_path: os.path, default_headers: list):
         return True
 
 
+def get_last_count_error_ticket(last_count: int) -> List[Error_Ticket_Log]:
+
+    # 指定csv路徑
+    file_path = os.path.join(
+        csv_directory, 'HV_Error_Ticket_Log.csv')
+
+    # 讀取最後20筆資料
+    num_rows_to_read = int(last_count)
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as csvfile:
+            # 使用csv.reader讀取csv檔案
+            csv_reader = csv.reader(csvfile)
+
+            # 獲取表頭
+            headers = next(csv_reader)
+
+            # 找出最後20筆資料
+            rows = []
+            for row in csv_reader:
+                if not row:
+                    continue  # 跳過空白行
+                else:
+                    rows.append(row)
+
+            last_number_rows = rows[-num_rows_to_read:]
+
+            return last_number_rows
+
+    except FileNotFoundError:
+        logging.critical(f"找不到指定的 CSV 檔案：{file_path}")
+    except Exception as e:
+        logging.critical(f"發生錯誤：{e}")
+
+
+def get_last_post_number() -> Tuple[datetime.datetime, int]:
+    file_path = os.path.join(csv_directory, 'free_shop_last_post.csv')
+
+    Latest_Time = None
+    Latest_Post_Number = None
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+
+            # 迭代每一行，找到最新的時間和最後發文編號
+            for row in reader:
+                Newest_Time = row['Time']
+                Newest_Post_Number = row['Last_Post_Number']
+
+                # 如果最新時間為 None，或者當前行的時間比最新時間還要晚，則更新最新時間和最新發文編號
+                if Latest_Time is None or Newest_Time > Latest_Time:
+                    Latest_Time = Newest_Time
+                    Latest_Post_Number = Newest_Post_Number
+
+        return Latest_Time, Latest_Post_Number
+
+    except FileNotFoundError:
+        logging.critical(f"找不到指定的 CSV 檔案：{file_path}")
+    except Exception as e:
+        logging.critical(f"發生錯誤：{e}")
+
+
 def Get_Black_List_Reason_From_User_UID(User_UID: int):
     """
     透過user_id來取得blck_list資訊
@@ -92,15 +166,15 @@ def Get_Black_List_Reason_From_User_UID(User_UID: int):
     # 檔案路徑
     file_path = os.path.join(csv_directory,
                              'free_shop_black_list.csv')
-    headers = ['Time', 'User_UID', 'Root_Cause']
+    headers = ['Time', 'User_ID', 'User_UID', 'Root_Cause']
     check_csv_exists(file_path, headers)
 
     events = []
     new_events = {}
-
     # 開啟 CSV 檔案
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
+
         # 逐行讀取 CSV 檔案中的資料
         for row in reader:
             if str(User_UID) == row['User_UID']:
@@ -118,8 +192,10 @@ def Get_User_From_Black_List():
     # 取得當前目錄
 
     # 檔案路徑
-    file_path = os.path.join(csv_directory, 'csv',
-                             'HV_Equip_Shop_Black_List.csv')
+    file_path = os.path.join(csv_directory,
+                             'free_shop_black_list.csv')
+    headers = ['Time', 'User_ID', 'User_UID', 'Root_Cause']
+    check_csv_exists(file_path, headers)
 
     # 使用集合儲存使用者 ID，以排除重複的項目
     user_ids_set = set()
@@ -128,6 +204,7 @@ def Get_User_From_Black_List():
     # 開啟 CSV 檔案
     with open(file_path, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
+
         # 逐行讀取 CSV 檔案中的資料
         for row in reader:
             # 將每一行的 User_ID 加入集合
@@ -145,14 +222,13 @@ def Add_User_To_Black_List(User_ID, User_UID, Equip_ID, Equip_URL, Equip_Name, R
 
     # 檔案路徑
     file_path = os.path.join(csv_directory,
-                             'HV_Equip_Shop_Black_List.csv')
+                             'free_shop_black_list.csv')
 
     # 如果未提供時間，則使用當前時間
     if Time is None:
         Time = get_isoformat()
 
-    log_entry = [Time, User_ID, User_UID, Equip_ID,
-                 Equip_URL, Equip_Name, Root_Cause]
+    log_entry = [Time, User_ID, User_UID, Root_Cause]
 
     # 開啟 CSV 檔案，如果不存在就建立新檔案，並寫入資料
     with open(file_path, mode='a', newline='') as csv_file:
@@ -161,7 +237,7 @@ def Add_User_To_Black_List(User_ID, User_UID, Equip_ID, Equip_URL, Equip_Name, R
         # 如果檔案是空的，就寫入欄位名稱
         if csv_file.tell() == 0:
             writer.writerow(
-                ["Time", "User_ID", "User_UID", "Equip_ID", "Equip_URL", "Equip_Name", "Root_Cause"])
+                ["Time", "User_ID", "User_UID",  "Root_Cause"])
 
         writer.writerow(log_entry)
 

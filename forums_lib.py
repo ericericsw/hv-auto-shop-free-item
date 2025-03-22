@@ -7,7 +7,7 @@ import re
 import logging
 import os
 import configparser
-import pytz
+# import pytz
 import sys
 from typing import List, Dict, TypedDict
 from bs4 import BeautifulSoup
@@ -32,7 +32,7 @@ TODO 789
 """
 
 # 指定時區
-timezone = pytz.timezone('Asia/Taipei')
+# timezone = pytz.timezone('Asia/Taipei')
 
 if getattr(sys, 'frozen', False):
     # 如果是打包後的可執行文件
