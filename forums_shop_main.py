@@ -18,6 +18,7 @@ import traceback
 from typing import List, Dict, TypedDict
 from collections import defaultdict
 from dataclasses import dataclass
+from forums_lib import Forums_Code
 # endregion
 
 # 指定時區
@@ -275,33 +276,34 @@ def ticket_info_processing(shop_order_setting: Dict[str, SuitInfo], ticket_info:
 def generate_order_info_post_text(shop_order_setting: Dict[str, SuitInfo]):
     bot_order_info_file_path = os.path.join(
         current_directory, 'post_draft', 'bot_order_info.txt')
+
+    def write_list_item(file, content):
+        file.write(Forums_Code.LIST_ITEM.value)
+        file.write(content)
+        file.write(Forums_Code.NEWLINE.value)
+
+    def write_order_info(file, details):
+        cool_time = 'Infinity' if details['item_suit_cool_time_day'] == 0 else details['item_suit_cool_time_day']
+        write_list_item(file, f"Re-request interval (Days): {cool_time}")
+        write_list_item(
+            file, f"Order request limit: {details['item_suit_order_limit']}")
+        write_list_item(
+            file, f"Level Limit: {details['item_suit_level_limit_min']} ~ {details['item_suit_level_limit_max']}")
+        write_list_item(file, "Items:")
+        file.write(Forums_Code.ORDERED_LIST_START.value)
+        for item in details['item_info']:
+            write_list_item(
+                file, f"    {item['item_name']}: {item['item_number']}")
+        file.write(Forums_Code.ORDERED_LIST_END.value)
+
     with open(bot_order_info_file_path, 'w') as file:
         for suit, details in shop_order_setting.items():
             file.write(f"Suit Name: {suit}")
-            file.write("[list]")
-            file.write("\n")
-
-            file.write("[*]")
-            cool_time = 'Infinity' if details['item_suit_cool_time_day'] == 0 else details['item_suit_cool_time_day']
-            file.write(f"  Re-request interval (Days): {cool_time}\n")
-
-            file.write("[*]")
-            file.write(
-                f"  Order request limit: {details['item_suit_order_limit']}\n")
-
-            file.write("[*]")
-            file.write(
-                f"  Level Limit: {details['item_suit_level_limit_min']} ~ {details['item_suit_level_limit_max']}\n")
-            file.write("  Items:\n")
-
-            file.write("[list=1]")
-            for item in details['item_info']:
-                file.write("[*]")
-                file.write(
-                    f"    {item['item_name']}: {item['item_number']}\n")
-            file.write("[/list]")
-            file.write("[/list]")
-            file.write("\n")
+            file.write(Forums_Code.UNORDERED_LIST_START.value)
+            file.write(Forums_Code.NEWLINE.value)
+            write_order_info(file, details)
+            file.write(Forums_Code.ORDERED_LIST_END.value)
+            file.write(Forums_Code.NEWLINE.value)
 
 
 def main():

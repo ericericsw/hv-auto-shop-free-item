@@ -11,6 +11,7 @@ import pytz
 import sys
 from typing import List, Dict, TypedDict
 from bs4 import BeautifulSoup
+import enum
 # endregion
 
 """
@@ -77,6 +78,51 @@ class CookieDict(TypedDict):
     ipb_member_id: str
     ipb_pass_hash: str
     ipb_session_id: str
+
+
+class Forums_Code(enum.Enum):
+    ORDERED_LIST_START: str = '[list=1]'
+    ORDERED_LIST_END: str = '[/list]'
+    UNORDERED_LIST_START: str = '[list]'
+    UNORDERED_LIST_END: str = '[/list]'
+    LIST_ITEM: str = '[*]'
+    CODE_START: str = '[code]'
+    CODE_END: str = '[/code]'
+    BOLD_START: str = '[b]'
+    BOLD_END: str = '[/b]'
+    ITALIC_START: str = '[i]'
+    ITALIC_END: str = '[/i]'
+    UNDERLINE_START: str = '[u]'
+    UNDERLINE_END: str = '[/u]'
+    STRIKETHROUGH_START: str = '[s]'
+    STRIKETHROUGH_END: str = '[/s]'
+    MAIL_START: str = '[email]'
+    MAIL_END: str = '[/email]'
+    IMAGE_START: str = '[img]'
+    IMAGE_END: str = '[/img]'
+    QUOTE_START: str = '[quote]'
+    QUOTE_END: str = '[/quote]'
+    ALIGN_LEFT_START: str = '[left]'
+    ALIGN_LEFT_END: str = '/[left]'
+    ALIGN_CENTER_START: str = '[center]'
+    ALIGN_CENTER_END: str = '[/center]'
+    ALIGN_RIGHT_START: str = '[right]'
+    ALIGN_RIGHT_END: str = '[/right]'
+    INDENT_START: str = '[indent]'
+    INDENT_END: str = '[/indent]'
+    URL_END: str = '[/url]'
+    TEXT_COLOR_END: str = '[/color]'
+    TEXT_SIZE_END: str = '[/size]'
+    NEWLINE: str = '\n'
+
+    def URL_START(fqdn: str) -> str:
+        return f'[url={fqdn}]'
+
+    def TEXT_COLOR_START(text_color_code: str) -> str:
+        return f'[color={text_color_code}]'
+
+    def TEXT_SIZE_START(text_size: int) -> str:
+        return f'[size={text_size}]'
 
 
 def get_cookie() -> CookieDict:
