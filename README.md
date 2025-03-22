@@ -2,10 +2,11 @@
 這是HV免費店的執行腳本
 
 # 目前功能
-自動爬樓檢查 post 是否符合設定 order 要求，符合要求的會用 MM 發信，錯誤的會記錄在 warning log  
+1. 自動爬樓檢查 post 是否符合設定 order 要求，符合要求的會用 MM 發信，錯誤的會記錄在 warning log  
+2. 啟動後，會自動在 post_draft 生成 order 資訊的語法，可以將語法更新到論壇 Post  
+3. 可自定義事件更新的 Post Number，並透過 BOT 自動更新「已經處理到第幾個 Post」，同時會印出錯誤的 Order 資訊  
+4. 可自行設定發送道具的門檻，若低於門檻 BOT 將會停止
 目前還沒有 MM check 功能  
-啟動後，會自動在 post_draft 生成 order 資訊的語法，可以將語法更新到論壇 Post  
-可自定義事件更新的 Post Number，並透過 BOT 自動更新「已經處理到第幾個 Post」，同時會印出錯誤的 Order 資訊  
 
 ## 時間間隔計算
 作為升級獎勵，不同的 item_suit_id 的時間獨立計算  
@@ -44,6 +45,9 @@
 | item_suit_order_limit | 請求order的次數限制 | 只能填入數字，若同一筆item_suit_id有不同值，則取最小值
 | item_suit_level_limit_min | 請求order的最小等級 | 只能填入數字，若同一筆item_suit_id有不同值，則取最大值
 | item_suit_level_limit_max | 請求order的最大等級 | 只能填入數字，若同一筆item_suit_id有不同值，則取最小值
+
+## item_retention_threshold.csv 的設定
+可以設定 item 保留數量，預設為各保留 1000
 
 # 使用方法
 ## 如何使用
