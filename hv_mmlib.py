@@ -15,7 +15,7 @@ import time
 import hv_equiplib
 import inspect
 import enum
-
+from dataclasses import dataclass
 
 if getattr(sys, 'frozen', False):
     # 如果是打包後的可執行文件
@@ -100,6 +100,9 @@ class MM_Read_Send_Data(TypedDict):
     attached_list_id: int
 
 
+MM_INFO_HEADER: list[str] = list(MM_Read_Send_Data.__annotations__.keys())
+
+
 class MM_Read_Send_Attach_List_Data(TypedDict):
     id: int
     attached_item1: str
@@ -112,6 +115,10 @@ class MM_Read_Send_Attach_List_Data(TypedDict):
     attached_item8: str
     attached_item9: str
     attached_item10: str
+
+
+MM_ATTACH_LIST_HEADER: list[str] = list(
+    MM_Read_Send_Attach_List_Data.__annotations__.keys())
 
 
 class Read_Or_Send(enum.Enum):
@@ -167,7 +174,7 @@ class TaskItem:
         self.status: str = 'Finish'
 
 
-def get_isoformat():
+def get_datetime_now_isoformat():
     """
     無時區、精度為秒
     """
@@ -291,28 +298,35 @@ def get_mm_send_time(mm_id: int) -> str:
 
 def get_mm_read_send_max_id(read_or_send: Read_Or_Send, mm_or_list: MM_Or_List) -> int:
     """
-    從 mm_read.csv、mm_send.csv、mm_read_list.csv、mm_send_list.csv 得取當前最大 id 值
+    從 mm_read_info.csv、mm_send_info.csv、mm_read_list.csv、mm_send_list.csv 得取當前最大 id 值
 
     input:
         read_or_send:read or send
         mm_or_list:mm or list
 
     """
+
     if read_or_send == Read_Or_Send.READ:
         if mm_or_list == MM_Or_List.LIST:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_read_attach_list.csv')
+            header = MM_ATTACH_LIST_HEADER
         elif mm_or_list == MM_Or_List.MM:
             mm_file_path = os.path.join(
-                csv_folder_path, 'mm_read.csv')
-
+                csv_folder_path, 'mm_read_info.csv')
+            header = MM_INFO_HEADER
     elif read_or_send == Read_Or_Send.SEND:
         if mm_or_list == MM_Or_List.LIST:
             mm_file_path = os.path.join(
                 csv_folder_path, 'mm_send_attach_list.csv')
+            header = MM_ATTACH_LIST_HEADER
         elif mm_or_list == MM_Or_List.MM:
             mm_file_path = os.path.join(
-                csv_folder_path, 'mm_send.csv')
+                csv_folder_path, 'mm_send_info.csv')
+            header = MM_INFO_HEADER
+
+    # 進行檔案存在檢查
+    csv_tools.check_csv_exists(mm_file_path, header)
 
     if mm_file_path:
         max_id = 0
@@ -374,9 +388,7 @@ def add_read_send_mm_attach_list(read_or_send: Read_Or_Send, mm_read_send_attach
         logging.critical('read_or_send input error')
         return False
 
-    header = ['id', 'attached_item1', 'attached_item2', 'attached_item3', 'attached_item4', 'attached_item5',
-              'attached_item6', 'attached_item7', 'attached_item8', 'attached_item9', 'attached_item10']
-    csv_tools.check_csv_exists(mm_file_path, header)
+    csv_tools.check_csv_exists(mm_file_path, MM_ATTACH_LIST_HEADER)
 
     # try:
     #     with open(mm_file_path, 'r', newline='', encoding='utf-8') as csvfile:
@@ -391,7 +403,7 @@ def add_read_send_mm_attach_list(read_or_send: Read_Or_Send, mm_read_send_attach
 
     # 寫入新資料到 CSV 檔案
     with open(mm_file_path, 'a', newline='', encoding='utf-8') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=header)
+        writer = csv.DictWriter(csvfile, fieldnames=MM_ATTACH_LIST_HEADER)
         writer.writerows(mm_read_send_attach_list_data)
     return True
 
@@ -406,16 +418,14 @@ def add_read_send_mm_info(read_or_send: Read_Or_Send, mm_read_send_data: List[MM
     """
 
     if read_or_send == Read_Or_Send.READ:
-        mm_file_path = os.path.join(csv_folder_path, 'mm_read.csv')
+        mm_file_path = os.path.join(csv_folder_path, 'mm_read_info.csv')
     elif read_or_send == Read_Or_Send.SEND:
-        mm_file_path = os.path.join(csv_folder_path, 'mm_send.csv')
+        mm_file_path = os.path.join(csv_folder_path, 'mm_send_info.csv')
     else:
         logging.critical('read_or_send input error')
         return False
 
-    header = ['mm_No', 'mm_from', 'subject', 'sent_time', 'read_time', 'mm_id',
-              'body', 'cod_switch', 'cod_value', 'attached_number', 'attached_list']
-    csv_tools.check_csv_exists(mm_file_path, header)
+    csv_tools.check_csv_exists(mm_file_path, MM_INFO_HEADER)
 
     # 讀取已存在的 mm_id
     existing_mm_id = set()
@@ -530,11 +540,11 @@ def check_mm_cod_status(soup: BeautifulSoup) -> tuple[bool, int]:
 
 
 class MoogleMail():
-    def __init__(self, cookies: Dict[str, str]):
+    def __init__(self):
         self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
         self.mm_write_url = self.mm_url + '&filter=new'
         self.mm_inbox_url = self.mm_url + '&filter=inbox'
-        self.cookies = cookies
+        self.cookies: CookieDict = get_cookie()
         self.mmtoken = None
         self.simple_token = None
         self.user_uid = config.get('Account', 'HV_Free_Shop_UID')
@@ -682,7 +692,13 @@ class MoogleMail():
                     'div', id='mmail_attachinfo')
 
                 # 確認有無附件資訊
-                if mmail_attachinfo:
+                """
+                解析
+                <div id="mmail_attachinfo">
+                </div>
+                裡面的資料
+                """
+                if mmail_attachinfo.get_text(strip=True):
                     # 提取 2 / 10 items attached
                     attach_count = mmail_attachinfo.select_one(
                         '#mmail_attachcount .fc4.fac.fcb div').get_text()
@@ -697,6 +713,10 @@ class MoogleMail():
                     attach_list = soup.select(
                         '#mmail_attachlist > div > div:first-child')
                     attach_items = [item.get_text() for item in attach_list]
+                else:
+                    # 沒有附件時人工填 0
+                    attach_number = 0
+                    attach_items = []
 
                 # 提取 裝備資訊
                 script = mmail_right.find('script', type="text/javascript")
@@ -718,8 +738,10 @@ class MoogleMail():
                         equip_item = {equip_url: equip_name}
                         equip_dict.update(equip_item)
 
-                attached_list_id = get_mm_read_send_max_id('read', 'list')+1
-                mm_No = get_mm_read_send_max_id('read', 'mm')+1
+                attached_list_id = get_mm_read_send_max_id(
+                    Read_Or_Send.READ, MM_Or_List.LIST)+1
+                mm_No = get_mm_read_send_max_id(
+                    Read_Or_Send.READ, MM_Or_List.MM)+1
 
                 mm_read_data: MM_Read_Send_Data = {
                     'mm_No': mm_No,
@@ -759,9 +781,10 @@ class MoogleMail():
                         del equip_dict[equip_url]
 
                 # TODO 之後要追加整串的檢查機制，避免死在中間某個斷點
-                if add_read_send_mm_info('read', mm_read_data):
-                    add_read_send_mm_body(mm_No, 'read', bodytext)
-                    add_read_send_mm_attach_list('read', attached_list_data)
+                if add_read_send_mm_info(Read_Or_Send.READ, mm_read_data):
+                    add_read_send_mm_body(mm_No, Read_Or_Send.READ, bodytext)
+                    add_read_send_mm_attach_list(
+                        Read_Or_Send.READ, attached_list_data)
 
                 return True
 
@@ -839,8 +862,6 @@ class MoogleMail():
 
     def check_send_mm():
         pass
-
-# TODO
 
     def equip_lock_or_unlock(self, lock_or_unlock: Lock_Or_Unlock, equip_id: int):
         """
@@ -1192,7 +1213,7 @@ class TaskManager:
         """
         with open(self.task_manager_csv_path, 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow([task.task_id, get_isoformat(), '',
+            writer.writerow([task.task_id, get_datetime_now_isoformat(), '',
                             'task_{}.json'.format(task.task_id)])
 
     def save_task_to_json(self, task: TaskItem):
@@ -1212,7 +1233,7 @@ class TaskManager:
             headers = reader.fieldnames
             for row in reader:
                 if int(row['SN']) == task.task_id:
-                    row['end_time'] = get_isoformat()
+                    row['end_time'] = get_datetime_now_isoformat()
                 rows.append(row)
 
         with open(self.task_manager_csv_path, 'w', newline='', encoding='utf-8') as file:
