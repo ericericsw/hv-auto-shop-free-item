@@ -6,12 +6,16 @@ import os
 import configparser
 import sys
 import logging
-from typing import List, Dict, TypedDict
+from typing import List, Dict, TypedDict, Tuple
 import enum
 import inspect
 import datetime
 import csv_tools
 from utils.utils import get_now_time
+from utils.logger import setup_logger
+
+# 讀取 logger
+logger = setup_logger(__name__)
 
 if getattr(sys, 'frozen', False):
     # 如果是打包後的可執行文件
@@ -28,22 +32,14 @@ config.read(config_path, encoding="utf-8")
 csv_folder_path = os.path.join(current_directory, 'csv')
 log_folder_path = os.path.join(current_directory, 'log')
 
+HENTAIVERSE_URL = 'https://hentaiverse.org'
+
 
 def check_folder_path_exists(folder_Path: os.path):
     if not os.path.exists(folder_Path):
         os.makedirs(folder_Path)
         logging.warning(f"資料夾 '{folder_Path}' 已建立。")
 
-
-# 設定 logging
-Log_Mode = config.get('Log', 'Log_Mode')
-Log_Format = '%(asctime)s | %(filename)s | %(funcName)s | %(levelname)s:%(message)s'
-log_file_path = os.path.join(
-    current_directory, 'log', 'hv_mmlib.log')
-logging.basicConfig(level=getattr(logging, Log_Mode.upper()),
-                    format=Log_Format,
-                    handlers=[logging.FileHandler(log_file_path, 'a', 'utf-8'),
-                              logging.StreamHandler()])
 
 equip_type_mapping = {
     'Axe': 'Axe',
@@ -91,15 +87,29 @@ class EquipCategory(enum.Enum):
     ARMOR_HEAVY = "aheavy"
 
 
+# Equip_Salvage_URL_MAP = {
+#     EquipCategory.ONE_HANDED: "https://hentaiverse.org/?s=Forge&ss=sa&filter=1handed",
+#     EquipCategory.TWO_HANDED: "https://hentaiverse.org/?s=Forge&ss=sa&filter=2handed",
+#     EquipCategory.STAFF: "https://hentaiverse.org/?s=Forge&ss=sa&filter=staff",
+#     EquipCategory.SHIELD: "https://hentaiverse.org/?s=Forge&ss=sa&filter=shield",
+#     EquipCategory.ARMOR_CLOTH: "https://hentaiverse.org/?s=Forge&ss=sa&filter=acloth",
+#     EquipCategory.ARMOR_LIGHT: "https://hentaiverse.org/?s=Forge&ss=sa&filter=alight",
+#     EquipCategory.ARMOR_HEAVY: "https://hentaiverse.org/?s=Forge&ss=sa&filter=aheavy",
+# }
 Equip_Salvage_URL_MAP = {
-    EquipCategory.ONE_HANDED: "https://hentaiverse.org/?s=Forge&ss=sa&filter=1handed",
-    EquipCategory.TWO_HANDED: "https://hentaiverse.org/?s=Forge&ss=sa&filter=2handed",
-    EquipCategory.STAFF: "https://hentaiverse.org/?s=Forge&ss=sa&filter=staff",
-    EquipCategory.SHIELD: "https://hentaiverse.org/?s=Forge&ss=sa&filter=shield",
-    EquipCategory.ARMOR_CLOTH: "https://hentaiverse.org/?s=Forge&ss=sa&filter=acloth",
-    EquipCategory.ARMOR_LIGHT: "https://hentaiverse.org/?s=Forge&ss=sa&filter=alight",
-    EquipCategory.ARMOR_HEAVY: "https://hentaiverse.org/?s=Forge&ss=sa&filter=aheavy",
+    EquipCategory.ONE_HANDED: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=1handed",
+    EquipCategory.TWO_HANDED: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=2handed",
+    EquipCategory.STAFF: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=staff",
+    EquipCategory.SHIELD: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=shield",
+    EquipCategory.ARMOR_CLOTH: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=acloth",
+    EquipCategory.ARMOR_LIGHT: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=alight",
+    EquipCategory.ARMOR_HEAVY: HENTAIVERSE_URL+"/?s=Forge&ss=sa&filter=aheavy",
 }
+
+
+class Equip_Status_List(enum.Enum):
+    Tradeable = 'Tradeable'
+    Soulbound = 'Soulbound'
 
 
 class Equip_Salvage_List_Data(TypedDict):
@@ -150,7 +160,7 @@ def get_equip_id(equip_url):
         print('error get_equip_id')
 
 
-def Get_Equip_Level(soup):
+def Get_Equip_Level_0_90(soup):
     try:
         # 找到包含Level的<div>標籤，然後獲取其文字內容
         level_text = soup.text.split('Level')[1].strip()
@@ -160,7 +170,7 @@ def Get_Equip_Level(soup):
         return None
 
 
-def Get_Equip_Category(soup):
+def Get_Equip_Category_0_90(soup):
 
     # 找到包含裝備類型的元素
     equip_Category_element = soup.find('div', class_='eq et')
@@ -177,7 +187,24 @@ def Get_Equip_Category(soup):
     return equip_Category
 
 
-def Get_Equip_Status_Tradable(soup):
+def Get_Equip_Category_0_91(soup):
+
+    # 找到包含裝備類型的元素
+    equip_Category_element = soup.find('div', class_='eq')
+
+    if equip_Category_element:
+        # 從元素中取得裝備類型文本
+        equip_Category = equip_Category_element.find(
+            'div').text.strip().split()[0]
+    else:
+        equip_Category_element = soup.find('div', class_='eq')
+        equip_Category = equip_Category_element.find(
+            'div').text.strip().split()[0]
+
+    return equip_Category
+
+
+def Get_Equip_Status_Tradable_0_90(soup):
     try:
         # 定位目標信息
         tradeable_span = soup.find('div', id='equip_extended').find(
@@ -190,7 +217,43 @@ def Get_Equip_Status_Tradable(soup):
         return None
 
 
-def Get_Equip_Status_Upgrades(soup):
+def Get_Equip_Status_0_91(soup) -> Equip_Status_List:
+
+    eqt_div = soup.find("div", class_="eqt")
+    if not eqt_div:
+        return {"tier": [], "status": None}
+
+    # 取得文字內容
+    eqt_text = eqt_div.get_text(strip=True)
+
+    # 擷取 Soulbound 或 Tradeable
+    status_match = re.search(r"(Soulbound|Tradeable)", eqt_text)
+    status = status_match.group(1) if status_match else None
+    if status == 'Soulbound':
+        status = Equip_Status_List.Soulbound
+    elif status == 'Tradeable':
+        status = Equip_Status_List.Tradeable
+    return status
+
+
+def Get_Equip_Status_IW_0_91(soup) -> str:
+    # 找到 class="eqt" 的 div
+    eqt_div = soup.find("div", class_="eqt")
+    if not eqt_div:
+        return {"tier": [], "status": None}
+
+    # 取得文字內容
+    eqt_text = eqt_div.get_text(strip=True)
+
+    # 擷取 Tier 數字
+    match = re.search(r"Tier\s+([\d\s/]+)", eqt_text)
+    tier_numbers = [int(num) for num in match.group(1).split(
+        "/") if num.strip().isdigit()] if match else []
+
+    return tier_numbers
+
+
+def Get_Equip_Status_Upgrades_0_90(soup):
     upgrades_and_enchantments_div = soup.find(
         'div', string='Upgrades and Enchantments')
 
@@ -209,7 +272,7 @@ def Get_Equip_Status_Upgrades(soup):
         print("Upgrades and Enchantments section not found.")
 
 
-def Get_Equip_Status_IW(soup):
+def Get_Equip_Status_IW_0_90(soup):
     IW_div = soup.find(
         'div', string='Upgrades and Enchantments')
 
@@ -248,7 +311,7 @@ def Get_Equip_Status_Owner(soup):
         print("未找到包含 'Current Owner:' 的元素")
 
 
-def Get_Equip_Status_Name(soup):
+def Get_Equip_Status_Name_0_90(soup) -> str:
     Name_div = soup.select('div.fc4.fac.fcb > div')
     result = ' '.join(div.get_text() for div in Name_div)
 
@@ -257,7 +320,17 @@ def Get_Equip_Status_Name(soup):
     return result
 
 
-def Get_Equip_Status_Soulbound(soup):
+def Get_Equip_Status_Name_0_91(soup) -> str:
+    equip_div = soup.find('div', class_='showequip')
+
+    # 裝備名稱在 'showequip' div 下的第一個 div
+    equip_name_tag = equip_div.find('div')
+    equip_name = equip_name_tag.text.strip() if equip_name_tag else "未找到裝備名稱"
+
+    return equip_name
+
+
+def Get_Equip_Status_Soulbound_0_90(soup):
     try:
         target_span = soup.select_one(
             '#equip_extended > div.eq.es > div:nth-child(1) > span')
@@ -268,7 +341,7 @@ def Get_Equip_Status_Soulbound(soup):
         return None
 
 
-def Get_Equip_Status(Equip_URL):
+def Get_Equip_Status_ALL_0_90(Equip_URL):
 
     # 發送帶有 Cookie 的請求
     response = requests.get(Equip_URL, cookies=get_cookie())
@@ -284,19 +357,139 @@ def Get_Equip_Status(Equip_URL):
 
     user_id, user_uid = Get_Equip_Status_Owner(soup)
 
-    Equip_Level = Get_Equip_Level(soup)
-    Equip_Category = Get_Equip_Category(soup)
-    Equip_Status_Tradable = Get_Equip_Status_Tradable(soup)
-    Equip_Status_IW = Get_Equip_Status_IW(soup)
-    Equip_Status_Upgrades = Get_Equip_Status_Upgrades(soup)
-    Equip_Name = Get_Equip_Status_Name(soup)
-    Equip_Status_Soulbound = Get_Equip_Status_Soulbound(soup)
+    Equip_Level = Get_Equip_Level_0_90(soup)
+    Equip_Category = Get_Equip_Category_0_90(soup)
+    Equip_Status_Tradable = Get_Equip_Status_Tradable_0_90(soup)
+    Equip_Status_IW = Get_Equip_Status_IW_0_90(soup)
+    Equip_Status_Upgrades = Get_Equip_Status_Upgrades_0_90(soup)
+    Equip_Name = Get_Equip_Status_Name_0_90(soup)
+    Equip_Status_Soulbound = Get_Equip_Status_Soulbound_0_90(soup)
 
     if Equip_Status_Soulbound:
         Equip_Level = Equip_Status_Soulbound
         Equip_Status_Tradable = Equip_Status_Soulbound
 
     return Equip_Name, Equip_Level, Equip_Category, Equip_Status_Tradable, Equip_Status_IW, Equip_Status_Upgrades, user_id, user_uid
+
+
+def Get_Equip_Winner_0_91(soup) -> Tuple[str, str]:
+    """
+    output: sername, user_id
+    """
+    target_a = soup.find("a", {"target": "_forums"})
+
+    # 取得文字與 href
+    username = target_a.get_text(strip=True)
+    profile_link = target_a.get("href")
+
+    match = re.search(r"showuser=(\d+)", profile_link)
+    if match:
+        user_id = match.group(1)
+    else:
+        print("未找到 User ID")
+        user_id = None
+
+    return username, user_id
+
+
+def Get_Equip_Status_Soulbound_0_91(soup):
+    try:
+        target_span = soup.select_one(
+            '#equip_extended > div.eq.es > div:nth-child(1) > span')
+        result = target_span.get_text()
+        # print('target_span:', result)
+        return result
+    except:
+        return None
+
+
+def Get_Equip_Level_0_91(soup):
+
+    # 裝備名稱 (第一個 <a> 標籤)
+    name_tag = soup.find("a")
+    name = name_tag.get_text(strip=True) if name_tag else None
+
+    # 找到 class="eqt" 的 div
+    eqt_div = soup.find("div", class_="eqt")
+    eqt_text = eqt_div.get_text(strip=True) if eqt_div else ""
+
+    # 擷取 Level 數字
+    level_match = re.search(r"Level\s+(\d+)", eqt_text)
+    level = int(level_match.group(1)) if level_match else None
+
+    return level
+
+
+def Get_Equip_Drop_time_0_91(soup):
+
+    # Dropped by & Current Owner & 日期
+    info_div = soup.find("div", style=re.compile("border-top"))
+    drop_date = None
+
+    if info_div:
+        p_tags = info_div.find_all("p")
+        if len(p_tags) >= 1:
+            # Dropped by 誰 for 誰 on 日期
+            dropped_text = p_tags[0].get_text(strip=True)
+            # 擷取日期
+            date_match = re.search(r"on\s+(\d{4}-\d{2}-\d{2})", dropped_text)
+            drop_date = date_match.group(1) if date_match else None
+            if date_match:
+                # 轉換成 ISO 格式
+                drop_date_iso = datetime.datetime.strptime(
+                    date_match.group(1), "%Y-%m-%d").isoformat() + "Z"
+
+    return drop_date_iso
+
+
+def Get_Equip_Condition_0_91(soup):
+
+    # Condition
+    condition_div = soup.find("div", class_="eqr")
+    condition_text = condition_div.get_text(
+        strip=True) if condition_div else ""
+    condition_match = re.search(r"Condition:\s*(\d+)%", condition_text)
+    condition = int(condition_match.group(1)) if condition_match else None
+
+    return condition
+
+
+def Get_Equip_Status_ALL_0_91(Equip_URL):
+
+    # 發送帶有 Cookie 的請求
+    response = requests.get(Equip_URL, cookies=get_cookie())
+
+    if response.status_code == 200:
+        # 獲取網頁內容
+        html_content = response.text
+    else:
+        print(f"Request failed. Status code: {response.status_code}")
+
+    # 使用Beautiful Soup解析HTML
+    # print(html_content)
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    user_id, user_uid = Get_Equip_Status_Owner(soup)
+
+    Equip_Name = Get_Equip_Status_Name_0_91(soup)
+
+    Equip_Category = Get_Equip_Category_0_91(soup)
+    Equip_Status = Get_Equip_Status_0_91(soup)
+    Equip_Winner_Username, Equip_Winner_UID = Get_Equip_Winner_0_91(soup)
+    Equip_Drop_time = Get_Equip_Drop_time_0_91(soup)
+    Equip_Condition = Get_Equip_Condition_0_91(soup)
+    Equip_Status_Upgrades = None
+
+    if Equip_Status == Equip_Status_List.Soulbound:
+        Equip_Level = 0
+        Equip_Status_Upgrades = Get_Equip_Status_IW_0_91(soup)
+    elif Equip_Status == Equip_Status_List.Tradeable:
+        Equip_Level = Get_Equip_Level_0_91(soup)
+    else:
+        logger.warning(f'Do not have Equip_Status')
+        pass
+
+    return Equip_Name, Equip_Level, Equip_Category, Equip_Condition, Equip_Status, Equip_Status_Upgrades, user_id, user_uid, Equip_Winner_Username, Equip_Winner_UID, Equip_Drop_time
 
 
 def get_salvage_log_max_id() -> int:
@@ -325,7 +518,8 @@ def get_salvage_log_max_id() -> int:
 
 class EquipForge:
     def __init__(self):
-        self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
+        # self.mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm'
+        self.mm_url = HENTAIVERSE_URL+'/?s=Bazaar&ss=mm'
         self.mm_write_url = self.mm_url + '&filter=new'
         self.mm_inbox_url = self.mm_url + '&filter=inbox'
         self.cookies: CookieDict = get_cookie()
@@ -380,7 +574,7 @@ class EquipForge:
         #     "Pragma": "no-cache",
         #     "Cache-Control": "no-cache"
         # }
-        Equip_Name, Equip_Level, Equip_Category, Equip_Status_Tradable, Equip_Status_IW, Equip_Status_Upgrades, user_id, user_uid = Get_Equip_Status(
+        Equip_Name, Equip_Level, Equip_Category, Equip_Status_Tradable, Equip_Status_IW, Equip_Status_Upgrades, user_id, user_uid = Get_Equip_Status_ALL_0_90(
             equip_url)
 
         # response = requests.post(url, headers=headers,
@@ -461,9 +655,11 @@ def check_after_post(response: requests, frame_name: str, mm_id: int = None) -> 
 
     # mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
     if mm_id is not None:
-        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+        # mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
+        mm_url = HENTAIVERSE_URL+'/?s=Bazaar&ss=mm&filter=inbox&mid=' + mm_id
     else:
-        mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox'
+        # mm_url = 'https://hentaiverse.org/?s=Bazaar&ss=mm&filter=inbox'
+        mm_url = HENTAIVERSE_URL+'/?s=Bazaar&ss=mm&filter=inbox'
 
     if response.status_code == 200:
         if check_battle_status(response):
@@ -476,8 +672,3 @@ def check_after_post(response: requests, frame_name: str, mm_id: int = None) -> 
         logging.error('{} Fail. code:{} text:{}'.format(
             frame_name, response.status_code, response.text))
         return False
-
-
-# ss = EquipForge()
-# ss.equip_salvage(EquipCategory.ARMOR_LIGHT,
-#                  'https://hentaiverse.org/equip/306318379/8e88af3383')
