@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import traceback
 from pydantic import BaseModel, field_validator
 from utils.logger import setup_logger
+from utils.utils import convert_to_iso, get_now_time
 
 # 讀取 logger
 logger = setup_logger(__name__)
@@ -83,10 +84,31 @@ class MM_Inbox_Data(BaseModel):
 MM_INBOX_HEADER: List[str] = list(MM_Inbox_Data.__annotations__.keys())
 
 
+class MM_Send_Mail_Data(BaseModel):
+    mm_to: str
+    subject: str
+    sent_time: str
+    read_time: str
+    mm_id: int
+    done_read: bool
+
+
+MM_SEND_MAIL_HEADER: List[str] = list(MM_Send_Mail_Data.__annotations__.keys())
+
+
 class MM_Inbox_List(enum.StrEnum):
     mm_from = 'mm_from'
     subject = 'subject'
     sent_time = 'sent_time'
+    mm_id = 'mm_id'
+    done_read = 'done_read'
+
+
+class MM_Send_Mail_List(enum.StrEnum):
+    mm_to = 'mm_to'
+    subject = 'subject'
+    sent_time = 'sent_time'
+    read_time = 'read_time'
     mm_id = 'mm_id'
     done_read = 'done_read'
 
@@ -156,12 +178,14 @@ class Lock_Or_Unlock(enum.Enum):
     UNLOCK: int = 0
 
 
+MAX_READ_PAGE = 0
 HENTAIVERSE_URL = 'https://hentaiverse.org'
 # HENTAIVERSE_URL = 'https://hvtl.e-hentai.org/'
 mm_inbox_file_path = os.path.join(csv_folder_path, 'mm_inbox.csv')
 mm_read_info_file_path = os.path.join(csv_folder_path, 'mm_read_info.csv')
 mm_read_attach_list_file_path = os.path.join(
     csv_folder_path, 'mm_read_attach_list.csv')
+mm_send_list_path = os.path.join(csv_folder_path, 'mm_send_list.csv')
 mm_send_info_file_path = os.path.join(csv_folder_path, 'mm_send_info.csv')
 mm_send_attach_list_file_path = os.path.join(
     csv_folder_path, 'mm_send_attach_list.csv')
@@ -336,7 +360,6 @@ def get_mm_read_send_max_id(read_or_send: Read_Or_Send, mm_or_list: MM_Or_List) 
         mm_or_list:mm or list
 
     """
-
     if read_or_send == Read_Or_Send.READ:
         if mm_or_list == MM_Or_List.LIST:
             mm_file_path = mm_read_attach_list_file_path
@@ -436,6 +459,42 @@ def add_read_send_mm_attach_list(read_or_send: Read_Or_Send, mm_read_send_attach
     with open(mm_file_path, 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=MM_ATTACH_LIST_HEADER)
         writer.writerows(mm_read_send_attach_list_data)
+    return True
+
+
+def add_send_mm_info_read_time(mm_id, read_time) -> bool:
+    """
+    補上 read time
+    """
+    csv_tools.check_csv_exists(mm_send_info_file_path, MM_INFO_HEADER)
+
+    # 讀取並轉成 BaseModel
+    rows = []
+    with open(mm_send_list_path, mode="r", newline="", encoding="utf-8") as infile:
+        reader = csv.DictReader(infile)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            # 建立 BaseModel 物件
+            data = MM_Send_Mail_Data(**row)
+            # 注意：CSV 讀進來的 int/bool 會是字串，要轉型
+            data.mm_id = int(data.mm_id)
+            data.done_read = data.done_read.lower() in ["true", "1", "yes"]
+
+            # 如果符合目標 mm_id，更新 sent_time
+            if data.mm_id == mm_id:
+                data.sent_time = (data.sent_time + ";" +
+                                  read_time) if data.sent_time else read_time
+            # 存回 dict，準備寫回 CSV
+            rows.append(data.dict())
+
+    # 覆蓋寫回 CSV
+    with open(mm_send_list_path, mode="w", newline="", encoding="utf-8") as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.info(f"已更新 mm_id={mm_id} 的 sent_time")
+
     return True
 
 
@@ -561,6 +620,57 @@ def get_mm_read_info_all() -> List[MM_Read_Send_Data]:
     return result
 
 
+def get_mm_send_list_info_all() -> List[MM_Send_Mail_Data]:
+    """
+    讀取 mm_send_info.csv 並回傳 List[MM_Send_Mail_Data]
+
+    :return: 說明
+    :rtype: List[MM_Send_Mail_Data]
+    """
+
+    result: list[MM_Send_Mail_Data] = []
+
+    if not os.path.exists(mm_send_list_path):
+        return result
+
+    try:
+        with open(mm_send_list_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # 建立 BaseModel 物件
+                model = MM_Send_Mail_Data(**row)
+
+                result.append(model)
+    except Exception as e:
+        logger.critical(f"Error reading inbox CSV: {e}")
+
+    return result
+
+
+def save_mm_send_list_all(data_list: List[dict]) -> bool:
+    """
+    將完整的資料列表覆蓋寫回 CSV (清除舊檔，寫入新檔)
+    """
+    try:
+        if not data_list:
+            return False
+
+        header = MM_SEND_MAIL_HEADER
+
+        # 使用 'w' 模式，這會清空舊檔案內容並寫入新的完整資料
+        with open(mm_send_list_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=header)
+            writer.writeheader()
+            writer.writerows(data_list)
+
+        logger.info(
+            f"Successfully overwritten CSV with {len(data_list)} unique records.")
+        return True
+    except Exception as e:
+        logger.critical(f"Error saving send list CSV: {e}")
+        return False
+
+
 def get_mm_inbox_all() -> List[MM_Inbox_Data]:
     """
     讀取 mm_inbox.csv 並回傳 List[MM_Inbox_Data]
@@ -680,6 +790,32 @@ def update_done_retrun(mm_id: int) -> bool:
         return False
 
 
+def read_send_mm_info_unread() -> List[MM_Inbox_Data]:
+    """
+    讀取 mm_send_list.csv，僅回傳 done_read == False 的資料
+    """
+    all_data = get_mm_send_list_info_all()
+    unread_data = [
+        row for row in all_data if not row.done_read]
+    return unread_data
+
+
+def get_send_mm_info_read_time_never() -> List[int]:
+    """
+    讀取 mm_send_list.csv，僅回傳 read_time 為 Never 的順序值
+    """
+    number_list = []
+    all_data = get_mm_send_list_info_all()
+    # 把 list 反轉
+    all_data.reverse()
+    number = 1
+    for data in all_data:
+        if data.read_time == 'Never':
+            number_list.append(number)
+        number += 1
+    return number_list
+
+
 def read_inbox_mm_info_unread() -> List[MM_Inbox_Data]:
     """
     讀取 mm_inbox.csv，僅回傳 done_read == False 的資料
@@ -689,18 +825,26 @@ def read_inbox_mm_info_unread() -> List[MM_Inbox_Data]:
     return unread_data
 
 
-def update_done_read(mm_id: int) -> bool:
+def update_done_read(mm_id: int, read_or_send: Read_Or_Send) -> bool:
     """
     根據 mm_id 將 mm_inbox.csv 中的 done_read 改為 True
     """
-    fieldnames = list(MM_Inbox_Data.model_fields.keys())
+    if read_or_send == Read_Or_Send.READ:
+        fieldnames = list(MM_Inbox_Data.model_fields.keys())
+        update_file_path = mm_inbox_file_path
+    elif read_or_send == Read_Or_Send.SEND:
+        fieldnames = list(MM_Send_Mail_Data.model_fields.keys())
+        update_file_path = mm_send_list_path
 
-    if not os.path.exists(mm_inbox_file_path):
+    if not os.path.exists(update_file_path):
         return False
 
     try:
         # 讀取所有資料
-        data = get_mm_inbox_all()
+        if read_or_send == Read_Or_Send.READ:
+            data = get_mm_inbox_all()
+        elif read_or_send == Read_Or_Send.SEND:
+            data = get_mm_send_list_info_all()
 
         # 更新指定 mm_id
         updated = False
@@ -712,7 +856,7 @@ def update_done_read(mm_id: int) -> bool:
 
         # 回存 CSV
         if updated:
-            with open(mm_inbox_file_path, 'w', newline='', encoding='utf-8') as csvfile:
+            with open(update_file_path, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 for item in data:
@@ -779,6 +923,7 @@ class MoogleMail():
         self.mm_url = HENTAIVERSE_URL+'/?s=Bazaar&ss=mm'
         self.mm_write_url = self.mm_url + '&filter=new'
         self.mm_inbox_url = self.mm_url + '&filter=inbox'
+        self.mm_send_mail_url = self.mm_url + '&filter=sent'
         self.cookies: CookieDict = get_cookie()
         self.mmtoken = None
         self.simple_token = None
@@ -794,7 +939,7 @@ class MoogleMail():
         if response.status_code == 200:
             # 檢查是否在戰鬥狀態
             if check_battle_status(response):
-                logger.info('The account not in battle')
+                # logger.info('The account not in battle')
                 return True
             else:
                 logger.error('The account is in battle')
@@ -821,7 +966,7 @@ class MoogleMail():
             if response.status_code == 200:
                 # 檢查是否在戰鬥狀態
                 if check_battle_status(response):
-                    logger.info('The account not in battle')
+                    # logger.info('The account not in battle')
 
                     soup = BeautifulSoup(response.text, 'html.parser')
                     outer_div = soup.find('div', id='mmail_outerlist')
@@ -846,10 +991,16 @@ class MoogleMail():
                                         mm_url = re.search(
                                             r"document\.location='(.*?)'", onclick_attr).group(1)
 
+                                        # 時間格式轉換
+                                        raw_sent_time = columns[2].text.strip()
+
+                                        iso_sent_time = convert_to_iso(
+                                            raw_sent_time)
+
                                         mm_info: MM_Inbox_Data = {
                                             MM_Inbox_List.mm_from: columns[0].text.strip(),
                                             MM_Inbox_List.subject: columns[1].text.strip(),
-                                            MM_Inbox_List.sent_time: columns[2].text.strip(),
+                                            MM_Inbox_List.sent_time: iso_sent_time,
                                             MM_Inbox_List.mm_id: get_mm_id(mm_url),
                                             MM_Inbox_List.done_read: False
                                         }
@@ -881,9 +1032,10 @@ class MoogleMail():
             print("完整錯誤追蹤：")
             print(traceback.format_exc())
 
-    def read_mm(self, mm_id: str) -> bool:
+    def read_mm(self, mm_id: str, read_or_send: Read_Or_Send) -> bool:
         """
         輸入 mm_id 來讀取內容資料
+        read_or_send 為選擇是 read 還是 send
 
         TODO 還沒做回傳與整理，裝備部分可以跟 hv_equiplib 串
         TODO 空白信件與attach關係處理
@@ -985,9 +1137,14 @@ class MoogleMail():
                         equip_dict.update(equip_item)
 
                 attached_list_id = get_mm_read_send_max_id(
-                    Read_Or_Send.READ, MM_Or_List.LIST)+1
+                    read_or_send, MM_Or_List.LIST)+1
                 mm_No = get_mm_read_send_max_id(
-                    Read_Or_Send.READ, MM_Or_List.MM)+1
+                    read_or_send, MM_Or_List.MM)+1
+
+                if read_or_send == Read_Or_Send.READ:
+                    read_time = get_now_time()
+                elif read_or_send == Read_Or_Send.SEND:
+                    read_time = None
 
                 mm_read_data: MM_Read_Send_Data = {
                     'mm_No': mm_No,
@@ -995,7 +1152,7 @@ class MoogleMail():
                     'mm_to': mm_to,
                     'subject': subject,
                     'sent_time': get_mm_send_time(mm_id),
-                    'read_time': datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    'read_time': read_time,
                     'mm_id': int(mm_id),
                     'body_id': mm_No,
                     'cod_switch': cod_switch,
@@ -1029,11 +1186,10 @@ class MoogleMail():
                         del equip_dict[equip_url]
 
                 # TODO 之後要追加整串的檢查機制，避免死在中間某個斷點
-                if add_read_send_mm_info(Read_Or_Send.READ, mm_read_data):
-                    add_read_send_mm_body(mm_No, Read_Or_Send.READ, bodytext)
+                if add_read_send_mm_info(read_or_send, mm_read_data):
+                    add_read_send_mm_body(mm_No, read_or_send, bodytext)
                     add_read_send_mm_attach_list(
-                        Read_Or_Send.READ, attached_list_data)
-
+                        read_or_send, attached_list_data)
                 return True
 
             else:
@@ -1043,6 +1199,193 @@ class MoogleMail():
             logger.error('__init__ fail. code:{}'.format(
                 response.status_code))
             return False
+
+    def send_check(self, select_page: int = 0, max_read_page: int = MAX_READ_PAGE):
+        """
+        讀取已發出的 MM 資訊
+        :param select_page: 
+            - 0: 自動模式，從第0頁開始，遇到舊信或達到 max_read_page 停止。
+            - >0: 指定頁數模式，只讀取該頁並更新資料，讀完即停止。
+        """
+        try:
+            # 1. 載入現有資料 (List[Object])
+            raw_objects = get_mm_send_list_info_all()
+
+            # 2. 轉換為 Map (Dictionary) 作為主要操作對象
+            # Key: mm_id, Value: 資料字典 (Dict)
+            data_map = {}
+            for obj in raw_objects:
+                # 轉成 Dict
+                item_dict = {}
+                if hasattr(obj, 'dict'):
+                    item_dict = obj.dict()
+                elif hasattr(obj, 'model_dump'):
+                    item_dict = obj.model_dump()
+                else:
+                    item_dict = obj.__dict__
+                # *** 強制將 ID 轉為字串 (避免 String/Int 導致的重複) ***
+                str_id = str(item_dict[MM_Send_Mail_List.mm_id])
+
+                # 確保 ID 欄位本身也是字串格式
+                item_dict[MM_Send_Mail_List.mm_id] = str_id
+
+                # 放入 Map (如果 CSV 原本就有重複，這裡會自動去重，只留最後一筆)
+                data_map[str_id] = item_dict
+
+            has_changes = False
+            page = select_page
+            stop_paging = False
+
+            # 判斷模式
+            is_specified_page_mode = (select_page != 0)
+
+            while not stop_paging:
+                logger.info(f"Scanning Send MM Page: {page}")
+                current_url = f"{self.mm_send_mail_url}&page={page}"
+
+                response = requests.get(current_url, cookies=self.cookies)
+
+                if response.status_code != 200:
+                    logger.error(
+                        f'inbox_check fail. code:{response.status_code}')
+                    return False
+
+                if not check_battle_status(response):
+                    logger.error('The account is in battle')
+                    return False
+
+                logger.info('The account not in battle')
+                soup = BeautifulSoup(response.text, 'html.parser')
+                outer_div = soup.find('div', id='mmail_outerlist')
+
+                if not outer_div:
+                    logger.critical("No div with id 'mmail_outerlist' found.")
+                    return False
+
+                table = outer_div.find('table', id='mmail_list')
+                divs = table.find_all('div')
+                divs_str = ''.join(str(div) for div in divs)
+
+                # 檢查 No New Mail
+                if "<div>No New Mail</div>" in divs_str:
+                    logger.info("No more mails found (End of list).")
+                    break
+
+                rows = table.find_all('tr')
+
+                for row in rows:
+                    onclick_attr = row.get('onclick')
+                    columns = row.find_all('td')
+
+                    if onclick_attr and columns:
+                        mm_url = re.search(
+                            r"document\.location='(.*?)'", onclick_attr).group(1)
+                        current_mm_id = str(get_mm_id(mm_url))
+
+                        # 時間轉換
+                        raw_sent_time = columns[2].text.strip()
+                        raw_read_time = columns[3].text.strip()
+                        iso_sent_time = convert_to_iso(raw_sent_time)
+                        iso_read_time = convert_to_iso(raw_read_time)
+
+                        new_mm_info = {
+                            MM_Send_Mail_List.mm_to: columns[0].text.strip(),
+                            MM_Send_Mail_List.subject: columns[1].text.strip(),
+                            MM_Send_Mail_List.sent_time: iso_sent_time,
+                            MM_Send_Mail_List.read_time: iso_read_time,
+                            MM_Send_Mail_List.mm_id: current_mm_id,
+                            MM_Send_Mail_List.done_read: False
+                        }
+
+                        if current_mm_id in data_map:
+                            # --- [舊資料更新邏輯] ---
+                            existing_record = data_map[current_mm_id]
+                            # 比對 read_time
+                            if existing_record[MM_Send_Mail_List.read_time] != iso_read_time:
+                                logger.info(
+                                    f"Updating read_time for ID: {current_mm_id}")
+                                # 直接覆蓋，確保是最新的
+                                data_map[current_mm_id] = new_mm_info
+                                has_changes = True
+
+                            # 自動模式：遇到舊資料就停止
+                            # if not is_specified_page_mode:
+                            #     logger.info(
+                            #         f"Found existing ID: {current_mm_id}. Stopping pagination.")
+                            #     stop_paging = True
+                            #     break
+                        else:
+                            # --- [新資料新增邏輯] ---
+                            data_map[current_mm_id] = new_mm_info
+                            has_changes = True
+
+                # --- [翻頁控制] ---
+                if stop_paging:
+                    break
+
+                # 指定頁數模式：讀完這一頁就強制結束
+                if is_specified_page_mode:
+                    logger.info(
+                        f"Finished scanning specified page {select_page}.")
+                    break
+
+                # 自動模式：檢查最大頁數
+                if page >= max_read_page:
+                    stop_paging = True
+                    break
+
+                page += 1
+                time.sleep(0.2)
+
+            # 3. 儲存資料
+            if has_changes:
+                # 將 Map 轉回 List
+                final_data_list = list(data_map.values())
+
+                # *** 排序修正 ***
+                # key: 依照 sent_time 排序
+                # reverse=False (預設): 升序 (小->大)，即 舊->新，新的在最下面
+                final_data_list.sort(
+                    key=lambda x: x[MM_Send_Mail_List.sent_time], reverse=False)
+                if save_mm_send_list_all(final_data_list):
+                    return True
+                else:
+                    return False
+            else:
+                logger.info("No data changed.")
+                return True
+
+        except Exception as e:
+            print("遇到錯誤：", e)
+            print("完整錯誤追蹤：")
+            print(traceback.format_exc())
+            return False
+
+    def read_send_mm(self):
+        """
+        讀取send並讀取還沒讀取的send MM
+
+        """
+
+        try:
+            self.send_check()
+            unread_mm_list = read_send_mm_info_unread()
+            for mm_list in unread_mm_list:
+                mm_id = mm_list.mm_id
+                if self.read_mm(mm_id, Read_Or_Send.SEND):
+                    update_done_read(mm_id, Read_Or_Send.SEND)
+            read_time_never_list = get_send_mm_info_read_time_never()
+
+            # 檢查還未讀取的
+            for read_time_never in read_time_never_list:
+                read_page = read_time_never // 20
+                if read_page > 0:
+                    self.send_check(read_page)
+
+        except Exception as e:
+            print("遇到錯誤：", e)
+            print("完整錯誤追蹤：")
+            print(traceback.format_exc())
 
     def read_inbox_mm(self):
         """
@@ -1055,8 +1398,8 @@ class MoogleMail():
             unread_mm_list = read_inbox_mm_info_unread()
             for mm_list in unread_mm_list:
                 mm_id = mm_list.mm_id
-                if self.read_mm(mm_id):
-                    update_done_read(mm_id)
+                if self.read_mm(mm_id, Read_Or_Send.READ):
+                    update_done_read(mm_id, Read_Or_Send.READ)
 
         except Exception as e:
             print("遇到錯誤：", e)
@@ -1239,24 +1582,6 @@ class MoogleMail():
             return False
         else:
             return True
-
-        # # 進行 GET 請求並附加 cookie
-        # response = requests.get(self.mm_write_url, cookies=self.cookies)
-        # if response.status_code == 200:
-        #     # 檢查是否在戰鬥狀態
-        #     if check_battle_status(response):
-        #         # 使用正則表達式提取 mmtoken
-        #         self.mmtoken = re.search(
-        #             r'<input type="hidden" name="mmtoken" value="(.*?)" />', response.text).group(1)
-        #         logger.info('get mm_token:{}'.format(self.mmtoken))
-        #         return True
-        #     else:
-        #         logger.error('The account is in battle')
-        #         return False
-        # else:
-        #     logger.error('write_new fail. code:{}'.format(
-        #         response.status_code))
-        #     return False
 
     def set_cod(self, CoD_value: int) -> bool:
         payload = {
