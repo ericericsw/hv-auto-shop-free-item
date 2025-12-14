@@ -7,7 +7,7 @@ import re
 import datetime
 import json
 import sys
-from typing import List, Dict, TypedDict, Optional
+from typing import List, Dict, TypedDict, Optional, Tuple, Literal, Union
 import csv_tools
 from bs4 import BeautifulSoup
 from lxml import etree
@@ -17,7 +17,7 @@ import inspect
 import enum
 from dataclasses import dataclass
 import traceback
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, HttpUrl
 from utils.logger import setup_logger
 from utils.utils import convert_to_iso, get_now_time
 
@@ -178,6 +178,20 @@ class Lock_Or_Unlock(enum.Enum):
     UNLOCK: int = 0
 
 
+# 定義輸出的單個項目結構
+class ParsedGameItem(BaseModel):
+    # tag 限制只能是這四種字串之一
+    tag: Literal['equip', 'Credits', 'Hath', 'item']
+    name: str
+    # value 可以是 int (數量) 或 HttpUrl (網址)
+    # 這裡使用 Union[int, HttpUrl] 讓 Pydantic 知道這兩種都合法
+    value: Union[int, HttpUrl]
+
+
+class ParsedResultList(BaseModel):
+    items: List[ParsedGameItem]
+
+
 MAX_READ_PAGE = 0
 HENTAIVERSE_URL = 'https://hentaiverse.org'
 # HENTAIVERSE_URL = 'https://hvtl.e-hentai.org/'
@@ -250,6 +264,68 @@ def get_cookie() -> CookieDict:
     }
 
     return cookies
+
+
+def parse_attach_data(data_obj: MM_Read_Send_Attach_List_Data) -> List[ParsedGameItem]:
+    """
+    解析 MM_Read_Send_Attach_List_Data 物件，並回傳驗證過的 Pydantic 模型列表
+    """
+    parsed_results = []
+
+    # 步驟 1: 提取所有非空欄位
+    raw_item_strings = []
+    for i in range(1, 11):
+        attr_name = f'attached_item{i}'
+        val = getattr(data_obj, attr_name, '')
+        if val:
+            raw_item_strings.append(str(val))
+
+    # 步驟 2: 解析邏輯
+    for item_str in raw_item_strings:
+
+        # 暫存變數，稍後用來建立 ParsedGameItem
+        tag = None
+        name = None
+        value = None
+
+        # --- 規則 1: 裝備 (Equip) ---
+        equip_match = re.search(r"^(.*?)\((https?://[^)]+)\)$", item_str)
+        if equip_match:
+            tag = 'equip'
+            name = equip_match.group(1).strip()
+            value = equip_match.group(2)  # 這裡是網址 (str)
+
+        # --- 規則 2: Credits ---
+        elif 'Credits' in item_str:
+            tag = 'Credits'
+            name = 'Credits'
+            num_part = re.sub(r"[^\d]", "", item_str)
+            value = int(num_part) if num_part else 0  # 這裡是數量 (int)
+
+        # --- 規則 3: Hath ---
+        elif 'Hath' in item_str:
+            tag = 'Hath'
+            name = 'Hath'
+            num_part = re.sub(r"[^\d]", "", item_str)
+            value = int(num_part) if num_part else 0  # 這裡是數量 (int)
+
+        # --- 規則 4: 一般道具 (Item) ---
+        else:
+            tag = 'item'
+            item_match = re.search(r"^(\d+)x?\s+(.*)", item_str)
+            if item_match:
+                name = item_match.group(2).strip()
+                value = int(item_match.group(1))  # 這裡是數量 (int)
+            else:
+                name = item_str
+                value = 1
+
+        # 建立 Pydantic 物件並加入列表
+        if tag:
+            item_model = ParsedGameItem(tag=tag, name=name, value=value)
+            parsed_results.append(item_model)
+
+    return parsed_results
 
 
 def get_item_inventory() -> Dict[str, int]:
@@ -671,6 +747,56 @@ def save_mm_send_list_all(data_list: List[dict]) -> bool:
         return False
 
 
+def get_mm_info_read_or_send(read_or_send: Read_Or_Send, mm_id: int) -> Tuple[bool, MM_Read_Send_Data, MM_Read_Send_Attach_List_Data]:
+    """
+    查詢 MM info 與 attach
+
+    :param read_or_send: 指定查詢的是 read 或 send MM
+    :type read_or_send: Read_Or_Send
+    :param mm_id: mm_id
+    :type mm_id: int
+    """
+
+    if read_or_send == Read_Or_Send.READ:
+        info_file_path = mm_read_info_file_path
+        attach_list_file_path = mm_read_attach_list_file_path
+    elif read_or_send == Read_Or_Send.SEND:
+        info_file_path = mm_send_info_file_path
+        attach_list_file_path = mm_send_attach_list_file_path
+    else:
+        logger.critical(f'input error')
+
+    try:
+        target_mm: MM_Read_Send_Data
+        target_attach: MM_Read_Send_Attach_List_Data
+
+        with open(info_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # 建立 BaseModel 物件
+                mm_info = MM_Read_Send_Data(**row)
+                if str(mm_info.mm_id) == str(mm_id):
+                    target_mm = mm_info
+
+        mm_body_id = target_mm.body_id
+
+        with open(attach_list_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # 建立 BaseModel 物件
+                mm_attach = MM_Read_Send_Attach_List_Data(**row)
+                if str(mm_attach.id) == str(mm_body_id):
+                    target_attach = mm_attach
+
+        return True, target_mm, target_attach
+
+    except Exception as e:
+        print("遇到錯誤：", e)
+        print("完整錯誤追蹤：")
+        print(traceback.format_exc())
+        return False, None, None
+
+
 def get_mm_inbox_all() -> List[MM_Inbox_Data]:
     """
     讀取 mm_inbox.csv 並回傳 List[MM_Inbox_Data]
@@ -1054,7 +1180,7 @@ class MoogleMail():
         if response.status_code == 200:
             # 檢查是否在戰鬥狀態
             if check_battle_status(response):
-                logger.info('The account not in battle')
+                # logger.info('The account not in battle')
                 soup = BeautifulSoup(response.text, 'html.parser')
                 # print(soup.prettify())
 
@@ -1254,7 +1380,7 @@ class MoogleMail():
                     logger.error('The account is in battle')
                     return False
 
-                logger.info('The account not in battle')
+                # logger.info('The account not in battle')
                 soup = BeautifulSoup(response.text, 'html.parser')
                 outer_div = soup.find('div', id='mmail_outerlist')
 
@@ -1486,9 +1612,6 @@ class MoogleMail():
 
 # TODO
     def del_inbox_mm_info():
-        pass
-
-    def check_send_mm():
         pass
 
     def equip_lock_or_unlock(self, lock_or_unlock: Lock_Or_Unlock, equip_id: int):
