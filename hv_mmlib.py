@@ -884,6 +884,10 @@ def update_done_take(mm_id: int) -> bool:
 
 
 def update_done_retrun(mm_id: int) -> bool:
+    """
+    退回後並標記 done_retrun，主要用於對方寄 COD
+    """
+
     fieldnames = list(MM_Read_Send_Data.model_fields.keys())
 
     if not os.path.exists(mm_read_info_file_path):
@@ -1075,7 +1079,7 @@ class MoogleMail():
                 response.status_code))
             return False
 
-    def inbox_check(self) -> bool:
+    def inbox_check(self) -> tuple[bool, Optional[List[MM_Inbox_Data]]]:
         """
         檢查inbox並取得inbox列表資訊(單封MM的URL、From、Subject、SentTime、ReadTime)
         並將新的MM資訊記錄在 mm_inbox.csv 中
@@ -1133,26 +1137,26 @@ class MoogleMail():
                                         mm_inbox_list.append(mm_info)
 
                                 if add_inbox_mm_info(mm_inbox_list):
-                                    return True
+                                    return True, mm_inbox_list
                                 else:
                                     logger.critical('add inbox mm info fail')
-                                    return False
+                                    return False, None
                             else:
                                 print("No tbody found in the table.")
                         else:
                             logger.info("No New Mail.")
-                            return True
+                            return False, None
                     else:
                         logger.critical(
                             "No div with id 'mmail_outerlist' found.")
-                        return False
+                        return False, None
                 else:
                     logger.error('The account is in battle')
-                    return False
+                    return False, None
             else:
                 logger.error('inbox_check fail. code:{}'.format(
                     response.status_code))
-                return False
+                return False, None
         except Exception as e:
             print("遇到錯誤：", e)
             print("完整錯誤追蹤：")
@@ -1526,6 +1530,8 @@ class MoogleMail():
                 mm_id = mm_list.mm_id
                 if self.read_mm(mm_id, Read_Or_Send.READ):
                     update_done_read(mm_id, Read_Or_Send.READ)
+
+            return unread_mm_list
 
         except Exception as e:
             print("遇到錯誤：", e)
