@@ -1731,6 +1731,10 @@ class MoogleMail():
         return check_after_post(response,  inspect.currentframe().f_code.co_name)
 
     def attach_add_item(self, item_id: int, item_number: int) -> bool:
+        """
+        item 直接輸入 item-id 與數量
+        equip 輸入 equip-id 與數量填寫 0
+        """
         payload = {
             'mmtoken': self.mmtoken,
             'action': 'attach_add',
