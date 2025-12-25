@@ -411,6 +411,37 @@ def get_mm_id(mm_url: str) -> int:
         return 0
 
 
+def get_mm_id_by_subject(read_or_send: Read_Or_Send, subject: str) -> List:
+    """
+    提供收發信資訊取得搜尋並回傳符合的 MM ID 清單
+
+    :param read_or_send: 要查的信是 send 還是 read
+    :type read_or_send: Read_Or_Send
+
+    :param subject: MM 的 Subject
+    :type subject: str
+    """
+    if read_or_send == Read_Or_Send.READ:
+        mm_file_path = mm_read_info_file_path
+    elif read_or_send == Read_Or_Send.SEND:
+        mm_file_path = mm_send_info_file_path
+    else:
+        logger.critical('read_or_send input error')
+        return False
+
+    csv_tools.check_csv_exists(mm_send_info_file_path, MM_INFO_HEADER)
+    mm_id_list = []
+    with open(mm_file_path, mode="r", newline="", encoding="utf-8") as infile:
+        reader = csv.DictReader(infile)
+        fieldnames = reader.fieldnames
+        for row in reader:
+            data = MM_Read_Send_Data(**row)
+            if str(data.subject) == str(subject):
+                mm_id_list.append(data.mm_id)
+
+    return mm_id_list
+
+
 def get_mm_send_time(mm_id: int) -> str:
     """
     從 mm_inbox.csv 取得 send_time
